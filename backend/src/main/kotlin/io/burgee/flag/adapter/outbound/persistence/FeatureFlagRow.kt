@@ -11,7 +11,8 @@ import java.util.UUID
 @Table("feature_flags")
 data class FeatureFlagRow(
     @Id
-    override val id: UUID,
+    @Column("id")
+    val rowId: UUID,
     val key: String,
     val name: String,
     val description: String?,
@@ -20,8 +21,11 @@ data class FeatureFlagRow(
     val createdAt: Instant,
     @Column("updated_at")
     val updatedAt: Instant,
-    @Transient
-    val newRecord: Boolean = false,
 ) : Persistable<UUID> {
+    @Transient
+    var newRecord: Boolean = false
+
+    override fun getId(): UUID = rowId
+
     override fun isNew(): Boolean = newRecord
 }

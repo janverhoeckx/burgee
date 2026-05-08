@@ -3,7 +3,7 @@ package io.burgee.flag.adapter.outbound.persistence
 import io.burgee.flag.domain.FeatureFlag
 
 internal fun FeatureFlagRow.toDomain(): FeatureFlag = FeatureFlag(
-    id = id,
+    id = rowId,
     key = key,
     name = name,
     description = description,
@@ -13,12 +13,11 @@ internal fun FeatureFlagRow.toDomain(): FeatureFlag = FeatureFlag(
 )
 
 internal fun FeatureFlag.toRow(newRecord: Boolean): FeatureFlagRow = FeatureFlagRow(
-    id = id,
+    rowId = id,
     key = key,
     name = name,
     description = description,
     enabled = enabled,
     createdAt = createdAt,
     updatedAt = updatedAt,
-    newRecord = newRecord,
-)
+).also { it.newRecord = newRecord }
