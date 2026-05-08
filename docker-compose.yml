@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: burgee
+      POSTGRES_USER: burgee
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-burgee}
+    volumes:
+      - burgee-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U burgee -d burgee"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/burgee
+      DB_USERNAME: burgee
+      DB_PASSWORD: ${DB_PASSWORD:-burgee}
+      BURGEE_ADMIN_USERNAME: ${BURGEE_ADMIN_USERNAME:-admin}
+      BURGEE_ADMIN_PASSWORD: ${BURGEE_ADMIN_PASSWORD:-admin}
+      SERVER_PORT: 8080
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    depends_on:
+      - backend
+    environment:
+      BURGEE_API_BASE_URL: http://backend:8080
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+    restart: unless-stopped
+
+volumes:
+  burgee-pgdata:
