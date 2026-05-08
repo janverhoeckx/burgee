@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-FROM node:20-alpine AS build
+FROM node:22-alpine AS build
 WORKDIR /workspace
 COPY package.json ./
 RUN npm install --no-audit --no-fund

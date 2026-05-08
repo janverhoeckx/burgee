@@ -1,5 +1,8 @@
-package io.burgee.flag
+package io.burgee.flag.adapter.inbound.web
 
+import io.burgee.flag.application.port.inbound.CreateFlagUseCase
+import io.burgee.flag.application.port.inbound.UpdateFlagUseCase
+import io.burgee.flag.domain.FeatureFlag
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
 import jakarta.validation.constraints.Size
@@ -35,7 +38,14 @@ data class CreateFeatureFlagRequest(
     val description: String? = null,
 
     val enabled: Boolean = false,
-)
+) {
+    fun toCommand() = CreateFlagUseCase.Command(
+        key = key,
+        name = name,
+        description = description,
+        enabled = enabled,
+    )
+}
 
 data class UpdateFeatureFlagRequest(
     @field:NotBlank
@@ -46,10 +56,17 @@ data class UpdateFeatureFlagRequest(
     val description: String? = null,
 
     val enabled: Boolean,
-)
+) {
+    fun toCommand(id: UUID) = UpdateFlagUseCase.Command(
+        id = id,
+        name = name,
+        description = description,
+        enabled = enabled,
+    )
+}
 
 fun FeatureFlag.toResponse() = FeatureFlagResponse(
-    id = requireNotNull(id),
+    id = id,
     key = key,
     name = name,
     description = description,

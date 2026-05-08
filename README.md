@@ -2,8 +2,9 @@
 
 A simple, self-hostable, open-source feature flag service.
 
-- **Stateless backend** — Spring Boot + Kotlin + Postgres, scales horizontally behind any load balancer.
-- **Admin dashboard** — Angular 19 SPA for creating, editing, and toggling flags.
+- **Stateless backend** — Spring Boot 4 + Kotlin + Spring Data JDBC + Postgres, scales horizontally behind any load balancer.
+- **Hexagonal architecture** — domain, ports, and adapters cleanly separated; swapping persistence or transport requires no changes to the core.
+- **Admin dashboard** — Angular 21 SPA for creating, editing, and toggling flags.
 - **Public REST API** — fetch flags from your apps with a single GET.
 - **Docker-first** — `docker compose up` and you're running.
 
@@ -64,6 +65,24 @@ curl -u admin:admin -X POST http://localhost:8080/api/admin/flags \
 ## Statelessness
 
 The backend keeps no session state. Authentication is HTTP Basic, validated per request against the configured admin credentials. Every replica reads/writes the same Postgres, so you can run as many backend containers as you like behind a round-robin load balancer.
+
+## Backend architecture
+
+The backend follows hexagonal architecture (ports & adapters):
+
+```
+io.burgee.flag/
+├── domain/                                # pure domain model + invariants
+├── application/
+│   ├── port/inbound/                      # use case interfaces (driving ports)
+│   ├── port/outbound/                     # repository / SPI interfaces (driven ports)
+│   └── service/                           # use case implementations
+└── adapter/
+    ├── inbound/web/                       # Spring MVC controllers, DTOs, exception handler
+    └── outbound/persistence/              # Spring Data JDBC row, repository, port adapter
+```
+
+Controllers depend only on use case interfaces; the service depends only on the outbound port. The Spring Data JDBC row class and `CrudRepository` live behind the persistence adapter and are invisible to the rest of the application. The domain `FeatureFlag` is fully immutable; updates produce a new instance via `copy`, mirroring how Spring Data JDBC treats aggregates.
 
 ## Local development
 
