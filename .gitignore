@@ -44,6 +44,9 @@ dist/
 out-tsc/
 npm-debug.log*
 
+# Frontend build copied into backend image during docker build
+backend/src/main/resources/static/
+
 # Env / local secrets
 .env
 .env.*

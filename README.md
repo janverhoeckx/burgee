@@ -4,9 +4,9 @@ A simple, self-hostable, open-source feature flag service.
 
 - **Stateless backend** — Spring Boot 4 + Kotlin + Spring Data JDBC + Postgres, scales horizontally behind any load balancer.
 - **Hexagonal architecture** — domain, ports, and adapters cleanly separated; swapping persistence or transport requires no changes to the core.
-- **Admin dashboard** — Angular 21 SPA for creating, editing, and toggling flags.
+- **Admin dashboard** — Angular 21 SPA, built into the backend image and served from the same origin.
 - **Public REST API** — fetch flags from your apps with a single GET.
-- **Docker-first** — `docker compose up` and you're running.
+- **Single container** — frontend and backend ship together; one image, one port.
 
 ## Quickstart
 
@@ -16,8 +16,7 @@ docker compose up --build
 
 Then open:
 
-- **Dashboard**: http://localhost:8081 (default login: `admin` / `admin`)
-- **Backend**: http://localhost:8080
+- **Dashboard**: http://localhost:8080 (default login: `admin` / `admin`)
 - **Public flags API**: http://localhost:8080/api/v1/flags
 
 > **Change the default admin password** before exposing Burgee anywhere. Set `BURGEE_ADMIN_USERNAME` and `BURGEE_ADMIN_PASSWORD` in your environment or a `.env` file.
@@ -60,7 +59,7 @@ curl -u admin:admin -X POST http://localhost:8080/api/admin/flags \
 | `SERVER_PORT`             | `8080`                                     | Backend HTTP port                      |
 | `BURGEE_ADMIN_USERNAME`   | `admin`                                    | Dashboard / admin API user             |
 | `BURGEE_ADMIN_PASSWORD`   | `admin`                                    | Dashboard / admin API password         |
-| `BURGEE_API_BASE_URL`     | `http://backend:8080` (frontend container) | Backend URL the dashboard proxies to   |
+| `BURGEE_PORT`             | `8080`                                     | Host port published by `docker compose` |
 
 ## Statelessness
 
@@ -104,7 +103,7 @@ npm install
 npm start
 ```
 
-The Angular dev server runs on http://localhost:4200. Configure the API base URL by setting `window.__burgeeConfig.apiBaseUrl` (e.g. via a small script tag during dev), or use the nginx proxy via the Docker setup.
+The Angular dev server runs on http://localhost:4200. Point it at a local backend by setting `window.__burgeeConfig.apiBaseUrl` (e.g. via a small script tag during dev). In production the SPA is served by the backend at `/`, so no proxy is needed.
 
 ## Roadmap (not in v1)
 

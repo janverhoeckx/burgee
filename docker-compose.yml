@@ -14,8 +14,8 @@ services:
       retries: 10
     restart: unless-stopped
 
-  backend:
-    build: ./backend
+  burgee:
+    build: .
     depends_on:
       postgres:
         condition: service_healthy
@@ -27,17 +27,7 @@ services:
       BURGEE_ADMIN_PASSWORD: ${BURGEE_ADMIN_PASSWORD:-admin}
       SERVER_PORT: 8080
     ports:
-      - "${BACKEND_PORT:-8080}:8080"
-    restart: unless-stopped
-
-  frontend:
-    build: ./frontend
-    depends_on:
-      - backend
-    environment:
-      BURGEE_API_BASE_URL: http://backend:8080
-    ports:
-      - "${FRONTEND_PORT:-8081}:80"
+      - "${BURGEE_PORT:-8080}:8080"
     restart: unless-stopped
 
 volumes:

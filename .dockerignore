@@ -1,0 +1,14 @@
+**/.gradle
+**/build
+**/out
+**/.idea
+**/.kotlin
+**/*.iml
+**/node_modules
+**/dist
+**/.angular
+**/out-tsc
+.git
+.env
+.env.*
+!.env.example

@@ -47,7 +47,8 @@ class SecurityConfig {
                 auth.requestMatchers("/api/v1/flags/**").permitAll()
                 auth.requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                 auth.requestMatchers("/api/admin/**").hasRole("ADMIN")
-                auth.anyRequest().denyAll()
+                auth.requestMatchers("/api/**").denyAll()
+                auth.anyRequest().permitAll()
             }
             .httpBasic { }
             .formLogin { it.disable() }
