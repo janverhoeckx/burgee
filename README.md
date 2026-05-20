@@ -92,7 +92,7 @@ cd backend
 docker run --rm -d --name burgee-pg \
   -e POSTGRES_DB=burgee -e POSTGRES_USER=burgee -e POSTGRES_PASSWORD=burgee \
   -p 5432:5432 postgres:16-alpine
-./gradlew bootRun
+./mvnw spring-boot:run
 ```
 
 ### Frontend

@@ -7,17 +7,18 @@ COPY frontend/tsconfig.json frontend/tsconfig.app.json frontend/angular.json ./
 COPY frontend/src ./src
 RUN npx ng build --configuration production
 
-FROM gradle:9-jdk21 AS backend-build
+FROM maven:3-eclipse-temurin-21 AS backend-build
 WORKDIR /workspace
-COPY backend/settings.gradle.kts backend/build.gradle.kts backend/gradle.properties ./
+COPY backend/pom.xml ./
+RUN mvn -B -q dependency:go-offline
 COPY backend/src ./src
 COPY --from=frontend-build /workspace/dist/burgee-dashboard/browser ./src/main/resources/static
-RUN gradle --no-daemon bootJar -x test
+RUN mvn -B -q package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 RUN useradd -r -u 1001 burgee
-COPY --from=backend-build /workspace/build/libs/*.jar /app/burgee.jar
+COPY --from=backend-build /workspace/target/*.jar /app/burgee.jar
 USER burgee
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
