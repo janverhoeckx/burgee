@@ -60,6 +60,8 @@ export class AppComponent {
 
   logout(): void {
     this.auth.clear();
-    void this.router.navigate(['/login']);
+    if (this.auth.method() !== 'oauth2') {
+      void this.router.navigate(['/login']);
+    }
   }
 }
