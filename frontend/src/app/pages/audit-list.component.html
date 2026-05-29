@@ -1,0 +1,66 @@
+<div class="header">
+  <div>
+    <h1>Audit trail</h1>
+    <p class="muted">
+      @if (flagId()) {
+        History for one flag · {{ entries().length }} event{{ entries().length === 1 ? '' : 's' }}
+      } @else {
+        {{ entries().length }} event{{ entries().length === 1 ? '' : 's' }}
+      }
+    </p>
+  </div>
+  <button routerLink="/flags">Back to flags</button>
+</div>
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else if (error()) {
+  <div class="error">{{ error() }}</div>
+} @else if (entries().length === 0) {
+  <div class="empty">
+    <p>No audit events yet.</p>
+  </div>
+} @else {
+  <div class="search">
+    <input
+      type="search"
+      placeholder="Search by flag, user, action or details…"
+      [value]="search()"
+      (input)="onSearch($any($event.target).value)"
+    />
+    @if (search()) {
+      <span class="muted small">{{ filtered().length }} of {{ entries().length }}</span>
+    }
+  </div>
+
+  @if (filtered().length === 0) {
+    <div class="empty">
+      <p>No events match "{{ search() }}".</p>
+    </div>
+  } @else {
+  <table class="audit">
+    <thead>
+      <tr>
+        <th>When</th>
+        <th>Action</th>
+        <th>Flag</th>
+        <th>Who</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (entry of filtered(); track entry.id) {
+        <tr>
+          <td class="when">{{ entry.occurredAt | date: 'medium' }}</td>
+          <td>
+            <span class="badge" [class]="'badge-' + entry.action.toLowerCase()">{{ entry.action }}</span>
+          </td>
+          <td><code>{{ entry.flagKey }}</code></td>
+          <td>{{ entry.actor }}</td>
+          <td class="muted small">{{ entry.detail }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  }
+}

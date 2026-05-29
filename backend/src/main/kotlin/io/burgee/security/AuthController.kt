@@ -4,11 +4,8 @@ import org.springframework.beans.factory.ObjectProvider
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
-import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository
-import org.springframework.security.oauth2.core.oidc.user.OidcUser
-import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -60,13 +57,7 @@ class AuthController(
         if (authentication == null || !authentication.isAuthenticated) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
-        val name = when (val principal = authentication.principal) {
-            is OidcUser -> principal.fullName ?: principal.email ?: principal.subject
-            is Jwt -> principal.getClaimAsString("name") ?: principal.getClaimAsString("email") ?: principal.subject
-            is UserDetails -> principal.username
-            else -> authentication.name
-        }
-        return ResponseEntity.ok(UserInfoResponse(name = name))
+        return ResponseEntity.ok(UserInfoResponse(name = authentication.resolveUsername()))
     }
 }
 

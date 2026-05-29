@@ -20,12 +20,10 @@
   }
 }
 
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent);
-  display: inline-block;
+.logo {
+  display: block;
+  height: 36px;
+  width: auto;
 }
 
 .actions {

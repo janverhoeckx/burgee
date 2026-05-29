@@ -6,6 +6,8 @@ import io.burgee.flag.application.port.inbound.GetFlagByIdUseCase
 import io.burgee.flag.application.port.inbound.GetFlagByKeyUseCase
 import io.burgee.flag.application.port.inbound.ToggleFlagUseCase
 import io.burgee.flag.application.port.inbound.UpdateFlagUseCase
+import io.burgee.audit.application.port.inbound.RecordAuditEntryUseCase
+import io.burgee.audit.domain.AuditAction
 import io.burgee.flag.application.port.outbound.FeatureFlagRepositoryPort
 import io.burgee.flag.domain.FeatureFlag
 import io.mockk.every
@@ -24,7 +26,8 @@ class FeatureFlagServiceTest {
     private val now = Instant.parse("2026-01-01T12:00:00Z")
     private val clock = Clock.fixed(now, ZoneOffset.UTC)
     private val repository = mockk<FeatureFlagRepositoryPort>()
-    private val service = FeatureFlagService(repository, clock)
+    private val auditTrail = mockk<RecordAuditEntryUseCase>(relaxed = true)
+    private val service = FeatureFlagService(repository, auditTrail, clock)
 
     private val id = UUID.fromString("11111111-1111-1111-1111-111111111111")
     private val existing = FeatureFlag(
@@ -159,7 +162,7 @@ class FeatureFlagServiceTest {
 
     @Test
     fun `delete returns Deleted and removes when present`() {
-        every { repository.existsById(id) } returns true
+        every { repository.findById(id) } returns existing
         every { repository.deleteById(id) } returns Unit
 
         assertThat(service.delete(id)).isEqualTo(DeleteFlagUseCase.Result.Deleted)
@@ -168,9 +171,70 @@ class FeatureFlagServiceTest {
 
     @Test
     fun `delete returns NotFound when missing`() {
-        every { repository.existsById(id) } returns false
+        every { repository.findById(id) } returns null
 
         assertThat(service.delete(id)).isEqualTo(DeleteFlagUseCase.Result.NotFound)
         verify(exactly = 0) { repository.deleteById(any()) }
+    }
+
+    @Test
+    fun `create records a CREATE audit entry`() {
+        every { repository.existsByKey("brand-new") } returns false
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.create(CreateFlagUseCase.Command("brand-new", "Brand new", "desc", true))
+
+        val command = slot<RecordAuditEntryUseCase.Command>()
+        verify { auditTrail.record(capture(command)) }
+        assertThat(command.captured.action).isEqualTo(AuditAction.CREATE)
+        assertThat(command.captured.flagKey).isEqualTo("brand-new")
+    }
+
+    @Test
+    fun `update records an UPDATE audit entry describing the change`() {
+        every { repository.findById(id) } returns existing
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.update(UpdateFlagUseCase.Command(id, "renamed", existing.description, existing.enabled))
+
+        val command = slot<RecordAuditEntryUseCase.Command>()
+        verify { auditTrail.record(capture(command)) }
+        assertThat(command.captured.action).isEqualTo(AuditAction.UPDATE)
+        assertThat(command.captured.detail).contains("name:").contains("renamed")
+    }
+
+    @Test
+    fun `toggle records a TOGGLE audit entry`() {
+        every { repository.findById(id) } returns existing
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.toggle(id)
+
+        val command = slot<RecordAuditEntryUseCase.Command>()
+        verify { auditTrail.record(capture(command)) }
+        assertThat(command.captured.action).isEqualTo(AuditAction.TOGGLE)
+        assertThat(command.captured.detail).isEqualTo("enabled: false → true")
+    }
+
+    @Test
+    fun `delete records a DELETE audit entry`() {
+        every { repository.findById(id) } returns existing
+        every { repository.deleteById(id) } returns Unit
+
+        service.delete(id)
+
+        val command = slot<RecordAuditEntryUseCase.Command>()
+        verify { auditTrail.record(capture(command)) }
+        assertThat(command.captured.action).isEqualTo(AuditAction.DELETE)
+        assertThat(command.captured.flagKey).isEqualTo(existing.key)
+    }
+
+    @Test
+    fun `create does not record audit on duplicate key`() {
+        every { repository.existsByKey("checkout-v2") } returns true
+
+        service.create(CreateFlagUseCase.Command("checkout-v2", "name", null, false))
+
+        verify(exactly = 0) { auditTrail.record(any()) }
     }
 }

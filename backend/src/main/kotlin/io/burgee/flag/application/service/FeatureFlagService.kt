@@ -7,6 +7,8 @@ import io.burgee.flag.application.port.inbound.GetFlagByKeyUseCase
 import io.burgee.flag.application.port.inbound.ListFlagsUseCase
 import io.burgee.flag.application.port.inbound.ToggleFlagUseCase
 import io.burgee.flag.application.port.inbound.UpdateFlagUseCase
+import io.burgee.audit.application.port.inbound.RecordAuditEntryUseCase
+import io.burgee.audit.domain.AuditAction
 import io.burgee.flag.application.port.outbound.FeatureFlagRepositoryPort
 import io.burgee.flag.domain.FeatureFlag
 import org.springframework.stereotype.Service
@@ -19,6 +21,7 @@ import java.util.UUID
 @Transactional
 class FeatureFlagService(
     private val repository: FeatureFlagRepositoryPort,
+    private val auditTrail: RecordAuditEntryUseCase,
     private val clock: Clock,
 ) : ListFlagsUseCase,
     GetFlagByIdUseCase,
@@ -54,7 +57,9 @@ class FeatureFlagService(
             enabled = command.enabled,
             now = now(),
         )
-        return CreateFlagUseCase.Result.Created(repository.save(flag))
+        val saved = repository.save(flag)
+        recordAudit(AuditAction.CREATE, saved, "Created flag (enabled=${saved.enabled})")
+        return CreateFlagUseCase.Result.Created(saved)
     }
 
     override fun update(command: UpdateFlagUseCase.Command): UpdateFlagUseCase.Result {
@@ -66,20 +71,49 @@ class FeatureFlagService(
             enabled = command.enabled,
             now = now(),
         )
-        return UpdateFlagUseCase.Result.Updated(repository.save(updated))
+        val saved = repository.save(updated)
+        recordAudit(AuditAction.UPDATE, saved, describeChanges(existing, saved))
+        return UpdateFlagUseCase.Result.Updated(saved)
     }
 
     override fun toggle(id: UUID): ToggleFlagUseCase.Result {
         val existing = repository.findById(id)
             ?: return ToggleFlagUseCase.Result.NotFound
-        return ToggleFlagUseCase.Result.Toggled(repository.save(existing.toggled(now())))
+        val saved = repository.save(existing.toggled(now()))
+        recordAudit(AuditAction.TOGGLE, saved, "enabled: ${existing.enabled} → ${saved.enabled}")
+        return ToggleFlagUseCase.Result.Toggled(saved)
     }
 
     override fun delete(id: UUID): DeleteFlagUseCase.Result {
-        if (!repository.existsById(id)) return DeleteFlagUseCase.Result.NotFound
+        val existing = repository.findById(id) ?: return DeleteFlagUseCase.Result.NotFound
         repository.deleteById(id)
+        recordAudit(AuditAction.DELETE, existing, "Deleted flag '${existing.key}'")
         return DeleteFlagUseCase.Result.Deleted
     }
+
+    private fun recordAudit(action: AuditAction, flag: FeatureFlag, detail: String?) {
+        auditTrail.record(
+            RecordAuditEntryUseCase.Command(
+                action = action,
+                flagId = flag.id,
+                flagKey = flag.key,
+                detail = detail,
+            ),
+        )
+    }
+
+    private fun describeChanges(before: FeatureFlag, after: FeatureFlag): String {
+        val changes = buildList {
+            if (before.name != after.name) add("name: '${before.name}' → '${after.name}'")
+            if (before.description != after.description) {
+                add("description: ${quote(before.description)} → ${quote(after.description)}")
+            }
+            if (before.enabled != after.enabled) add("enabled: ${before.enabled} → ${after.enabled}")
+        }
+        return if (changes.isEmpty()) "No changes" else changes.joinToString("; ")
+    }
+
+    private fun quote(value: String?): String = if (value == null) "∅" else "'$value'"
 
     private fun now(): Instant = Instant.now(clock)
 }

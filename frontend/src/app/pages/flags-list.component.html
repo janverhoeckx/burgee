@@ -3,7 +3,10 @@
     <h1>Feature flags</h1>
     <p class="muted">{{ flags().length }} flag{{ flags().length === 1 ? '' : 's' }}</p>
   </div>
-  <button class="primary" routerLink="/flags/new">New flag</button>
+  <div class="header-actions">
+    <button routerLink="/audit">Audit trail</button>
+    <button class="primary" routerLink="/flags/new">New flag</button>
+  </div>
 </div>
 
 @if (loading()) {
@@ -43,6 +46,7 @@
             />
           </td>
           <td class="actions">
+            <button [routerLink]="['/audit']" [queryParams]="{ flagId: flag.id }">History</button>
             <button (click)="edit(flag)">Edit</button>
             <button class="danger" (click)="remove(flag)">Delete</button>
           </td>

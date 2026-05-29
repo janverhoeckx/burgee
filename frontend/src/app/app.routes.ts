@@ -21,6 +21,11 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./pages/flag-form.component').then((m) => m.FlagFormComponent),
   },
+  {
+    path: 'audit',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/audit-list.component').then((m) => m.AuditListComponent),
+  },
   { path: '', pathMatch: 'full', redirectTo: 'flags' },
   { path: '**', redirectTo: 'flags' },
 ];
