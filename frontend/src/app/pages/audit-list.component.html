@@ -51,13 +51,13 @@
     <tbody>
       @for (entry of filtered(); track entry.id) {
         <tr>
-          <td class="when">{{ entry.occurredAt | date: 'medium' }}</td>
-          <td>
+          <td class="when" data-label="When">{{ entry.occurredAt | date: 'medium' }}</td>
+          <td data-label="Action">
             <span class="badge" [class]="'badge-' + entry.action.toLowerCase()">{{ entry.action }}</span>
           </td>
-          <td><code>{{ entry.flagKey }}</code></td>
-          <td>{{ entry.actor }}</td>
-          <td class="muted small">{{ entry.detail }}</td>
+          <td data-label="Flag"><code>{{ entry.flagKey }}</code></td>
+          <td data-label="Who">{{ entry.actor }}</td>
+          <td class="muted small" data-label="Details">{{ entry.detail }}</td>
         </tr>
       }
     </tbody>

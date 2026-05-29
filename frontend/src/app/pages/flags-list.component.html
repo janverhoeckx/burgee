@@ -31,12 +31,12 @@
     <tbody>
       @for (flag of flags(); track flag.id) {
         <tr>
-          <td><code>{{ flag.key }}</code></td>
-          <td>
+          <td data-label="Key"><code>{{ flag.key }}</code></td>
+          <td data-label="Name">
             <div>{{ flag.name }}</div>
             @if (flag.description) { <div class="muted small">{{ flag.description }}</div> }
           </td>
-          <td>
+          <td data-label="Status">
             <input
               type="checkbox"
               class="toggle"

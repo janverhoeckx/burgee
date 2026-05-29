@@ -2,20 +2,20 @@
 FROM node:22-alpine AS frontend-build
 WORKDIR /workspace
 COPY frontend/package.json ./
-RUN npm install --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.npm npm install --no-audit --no-fund
 COPY frontend/tsconfig.json frontend/tsconfig.app.json frontend/angular.json ./
 COPY frontend/src ./src
 RUN npx ng build --configuration production
 
-FROM maven:3-eclipse-temurin-21 AS backend-build
+FROM maven:3-eclipse-temurin-25 AS backend-build
 WORKDIR /workspace
 COPY backend/pom.xml ./
-RUN mvn -B -q dependency:go-offline
+RUN --mount=type=cache,target=/root/.m2 mvn -B -q dependency:go-offline
 COPY backend/src ./src
 COPY --from=frontend-build /workspace/dist/burgee-dashboard/browser ./src/main/resources/static
-RUN mvn -B -q package -DskipTests
+RUN --mount=type=cache,target=/root/.m2 mvn -B -q package -DskipTests
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 WORKDIR /app
 RUN useradd -r -u 1001 burgee
 COPY --from=backend-build /workspace/target/*.jar /app/burgee.jar

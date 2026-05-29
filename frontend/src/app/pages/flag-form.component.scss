@@ -39,3 +39,13 @@ input[readonly] {
   justify-content: flex-end;
   margin-top: 1.25rem;
 }
+
+@media (max-width: 640px) {
+  .card {
+    padding: 1.25rem 1rem;
+  }
+
+  .actions button {
+    flex: 1;
+  }
+}
