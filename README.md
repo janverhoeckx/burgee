@@ -119,7 +119,7 @@ In `basic` and `firebase` modes the backend keeps no session state — authentic
 The backend follows hexagonal architecture (ports & adapters). Each bounded context (`flag`, `user`) has the same structure:
 
 ```
-io.burgee.{flag,user}/
+io.github.janverhoeckx.burgee.{flag,user}/
 ├── domain/                                # pure domain model + invariants
 ├── application/
 │   ├── port/inbound/                      # use case interfaces (driving ports)
