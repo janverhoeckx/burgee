@@ -4,6 +4,9 @@
     <p class="muted">{{ flags().length }} flag{{ flags().length === 1 ? '' : 's' }}</p>
   </div>
   <div class="header-actions">
+    @if (auth.isAdmin()) {
+      <button routerLink="/users">Users</button>
+    }
     <button routerLink="/audit">Audit trail</button>
     <button class="primary" routerLink="/flags/new">New flag</button>
   </div>
@@ -11,6 +14,11 @@
 
 @if (loading()) {
   <p class="muted">Loading…</p>
+} @else if (forbidden()) {
+  <div class="empty">
+    <p>Your account doesn't have permission yet.</p>
+    <p class="muted">Ask an administrator to grant your account the Admin role.</p>
+  </div>
 } @else if (error()) {
   <div class="error">{{ error() }}</div>
 } @else if (flags().length === 0) {

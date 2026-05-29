@@ -10,12 +10,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   let outgoing = req;
 
+  const needsAuth = req.url.includes('/api/admin/') || req.url.includes('/api/auth/user');
+
   if (auth.method() === 'firebase') {
     const token = auth.firebaseToken();
     if (token && req.url.includes('/api/')) {
       outgoing = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
     }
-  } else if (req.url.includes('/api/admin/')) {
+  } else if (needsAuth) {
     if (auth.method() === 'basic') {
       const header = auth.basicHeader();
       if (header) {

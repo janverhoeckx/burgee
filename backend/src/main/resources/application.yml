@@ -31,6 +31,9 @@ burgee:
   admin:
     username: ${BURGEE_ADMIN_USERNAME:admin}
     password: ${BURGEE_ADMIN_PASSWORD:admin}
+    # Identity-provider subject (the sub/uid the IDP issues) to bootstrap as admin on startup.
+    # Use with oauth2/firebase so a first admin can be created without touching the database.
+    subject: ${BURGEE_ADMIN_SUBJECT:}
   firebase:
     project-id: ${FIREBASE_PROJECT_ID:}
     api-key: ${FIREBASE_API_KEY:}

@@ -1,0 +1,52 @@
+<div class="header">
+  <div>
+    <h1>Users</h1>
+    <p class="muted">{{ users().length }} user{{ users().length === 1 ? '' : 's' }}</p>
+  </div>
+  <div class="header-actions">
+    <button routerLink="/flags">Back to flags</button>
+    <button class="primary" routerLink="/users/new">New user</button>
+  </div>
+</div>
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else if (error()) {
+  <div class="error">{{ error() }}</div>
+} @else if (users().length === 0) {
+  <div class="empty">
+    <p>No users yet.</p>
+    <button class="primary" routerLink="/users/new">Add your first user</button>
+  </div>
+} @else {
+  <table class="users">
+    <thead>
+      <tr>
+        <th>Identity</th>
+        <th>Name / email</th>
+        <th>Provider</th>
+        <th>Role</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (user of users(); track user.id) {
+        <tr>
+          <td data-label="Identity"><code>{{ user.subject }}</code></td>
+          <td data-label="Name / email">
+            <div>{{ user.displayName || '—' }}</div>
+            @if (user.email) { <div class="muted small">{{ user.email }}</div> }
+          </td>
+          <td data-label="Provider">{{ user.provider }}</td>
+          <td data-label="Role">
+            <span class="role" [class.admin]="user.role === 'ADMIN'" [class.new]="user.role === 'NEW'">{{ user.role }}</span>
+          </td>
+          <td class="actions">
+            <button (click)="edit(user)">Edit</button>
+            <button class="danger" [disabled]="busy().has(user.id)" (click)="remove(user)">Delete</button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

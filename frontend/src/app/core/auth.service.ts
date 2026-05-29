@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, catchError, map, of, switchMap, tap } from 'rxjs';
+import { Observable, catchError, firstValueFrom, map, of, switchMap, tap } from 'rxjs';
 import { initializeApp } from 'firebase/app';
 import {
   Auth,
@@ -39,6 +39,8 @@ interface AuthInfo {
 
 interface UserInfo {
   name: string;
+  role?: string;
+  isAdmin?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -51,12 +53,15 @@ export class AuthService {
   private readonly _oauthUser = signal<UserInfo | null>(null);
   private readonly _firebaseToken = signal<string | null>(null);
   private readonly _firebaseUser = signal<UserInfo | null>(null);
+  private readonly _role = signal<string | null>(null);
 
   private firebaseAuth: Auth | null = null;
 
   readonly method = this._method.asReadonly();
   readonly providers = this._providers.asReadonly();
   readonly firebaseToken = this._firebaseToken.asReadonly();
+  readonly role = this._role.asReadonly();
+  readonly isAdmin = computed(() => this._role() === 'ADMIN');
 
   readonly username = computed(() => {
     switch (this._method()) {
@@ -90,10 +95,15 @@ export class AuthService {
         this._method.set(info.method);
         this._providers.set(info.providers ?? []);
         if (info.method === 'oauth2') {
-          return this.fetchOAuthUser();
+          return this.fetchBackendUser();
         }
         if (info.method === 'firebase' && info.firebase) {
-          return this.initFirebase(info.firebase);
+          return this.initFirebase(info.firebase).pipe(
+            switchMap(() => (this._firebaseToken() ? this.fetchBackendUser() : of(undefined as void))),
+          );
+        }
+        if (this._basicState()) {
+          return this.fetchBackendUser();
         }
         return of(undefined as void);
       }),
@@ -106,6 +116,7 @@ export class AuthService {
     const creds: StoredCredentials = { username, basic };
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(creds));
     this._basicState.set(creds);
+    this.fetchBackendUser().subscribe();
   }
 
   async signInWithGoogle(): Promise<void> {
@@ -117,9 +128,11 @@ export class AuthService {
     this._firebaseUser.set({
       name: result.user.displayName || result.user.email || result.user.uid,
     });
+    await firstValueFrom(this.fetchBackendUser());
   }
 
   clear(): void {
+    this._role.set(null);
     if (this._method() === 'firebase') {
       if (this.firebaseAuth) {
         signOut(this.firebaseAuth);
@@ -174,11 +187,16 @@ export class AuthService {
     });
   }
 
-  private fetchOAuthUser(): Observable<void> {
+  private fetchBackendUser(): Observable<void> {
     return this.http
       .get<UserInfo>(`${apiBaseUrl()}/api/auth/user`, { withCredentials: true })
       .pipe(
-        tap((user) => this._oauthUser.set(user)),
+        tap((user) => {
+          this._role.set(user.role ?? null);
+          if (this._method() === 'oauth2') {
+            this._oauthUser.set(user);
+          }
+        }),
         map(() => undefined as void),
         catchError(() => of(undefined as void)),
       );

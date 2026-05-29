@@ -1,0 +1,66 @@
+<a routerLink="/users" class="back">&larr; Back to users</a>
+<div class="card">
+  <h1>{{ id() ? 'Edit user' : 'New user' }}</h1>
+
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <div class="field">
+      <label for="subject">{{ usesPassword() ? 'Username' : 'Identity provider subject' }}</label>
+      <input
+        id="subject"
+        type="text"
+        formControlName="subject"
+        [readonly]="!!id()"
+        [placeholder]="usesPassword() ? 'jane.doe' : 'the sub/uid issued by the IDP'"
+      />
+      @if (!usesPassword() && !id()) {
+        <div class="hint">
+          Pre-authorizes the user. They are matched on this id when they sign in via {{ provider() }}.
+        </div>
+      }
+    </div>
+
+    <div class="field">
+      <label for="displayName">Display name</label>
+      <input id="displayName" type="text" formControlName="displayName" placeholder="Jane Doe" />
+    </div>
+
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" type="email" formControlName="email" placeholder="jane@example.com" />
+      @if (form.controls.email.touched && form.controls.email.errors?.['email']) {
+        <div class="error">Enter a valid email address.</div>
+      }
+    </div>
+
+    <div class="field">
+      <label for="role">Role</label>
+      <select id="role" formControlName="role">
+        <option value="NEW">New (no permissions)</option>
+        <option value="USER">User (standard access)</option>
+        <option value="ADMIN">Admin (full access)</option>
+      </select>
+    </div>
+
+    @if (usesPassword()) {
+      <div class="field">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          [placeholder]="id() ? 'Leave blank to keep current password' : ''"
+          autocomplete="new-password"
+        />
+      </div>
+    }
+
+    @if (error()) { <div class="error">{{ error() }}</div> }
+
+    <div class="actions">
+      <button type="button" routerLink="/users">Cancel</button>
+      <button class="primary" type="submit" [disabled]="form.invalid || saving()">
+        {{ saving() ? 'Saving…' : 'Save' }}
+      </button>
+    </div>
+  </form>
+</div>

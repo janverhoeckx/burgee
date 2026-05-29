@@ -1,0 +1,157 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.85rem;
+  margin-top: 0.2rem;
+}
+
+.empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.role {
+  display: inline-block;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: var(--surface-2);
+  color: var(--muted);
+
+  &.admin {
+    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+  }
+
+  &.new {
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+  }
+}
+
+table.users {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+
+  th,
+  td {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--surface-2);
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+code {
+  background: var(--surface-2);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+td.actions {
+  white-space: nowrap;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .header-actions {
+    flex-wrap: wrap;
+
+    button {
+      flex: 1;
+    }
+  }
+
+  table.users {
+    border: none;
+    background: transparent;
+
+    thead {
+      display: none;
+    }
+
+    tr {
+      display: block;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 0.75rem;
+    }
+
+    td,
+    td.actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.65rem 1rem;
+    }
+
+    td::before {
+      content: attr(data-label);
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    td.actions {
+      flex-wrap: wrap;
+      justify-content: flex-end;
+
+      button {
+        flex: 1;
+      }
+    }
+  }
+}

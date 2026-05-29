@@ -1,6 +1,8 @@
 package io.github.janverhoeckx.burgee.security
 
-import org.springframework.beans.factory.annotation.Value
+import io.github.janverhoeckx.burgee.user.application.port.inbound.FindUserBySubjectUseCase
+import io.github.janverhoeckx.burgee.user.application.port.inbound.ResolveOrProvisionUserUseCase
+import io.github.janverhoeckx.burgee.user.domain.IdentityProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -8,9 +10,11 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.User
 import org.springframework.security.core.userdetails.UserDetailsService
+import org.springframework.security.core.userdetails.UsernameNotFoundException
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest
@@ -21,7 +25,6 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.security.oauth2.jwt.JwtDecoders
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
-import org.springframework.security.provisioning.InMemoryUserDetailsManager
 import org.springframework.security.web.SecurityFilterChain
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher
 import org.springframework.web.cors.CorsConfiguration
@@ -29,7 +32,7 @@ import org.springframework.web.cors.CorsConfigurationSource
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 
 @Configuration
-@EnableConfigurationProperties(AuthProperties::class, FirebaseProperties::class)
+@EnableConfigurationProperties(AuthProperties::class, FirebaseProperties::class, AdminProperties::class)
 class SecurityConfig(
     private val authProperties: AuthProperties,
     private val firebaseProperties: FirebaseProperties,
@@ -40,18 +43,18 @@ class SecurityConfig(
 
     @Bean
     @ConditionalOnProperty(name = ["burgee.auth.method"], havingValue = "basic", matchIfMissing = true)
-    fun userDetailsService(
-        @Value("\${burgee.admin.username:admin}") username: String,
-        @Value("\${burgee.admin.password:admin}") password: String,
-        encoder: PasswordEncoder,
-    ): UserDetailsService {
-        val admin = User.builder()
-            .username(username)
-            .password(encoder.encode(password))
-            .roles("ADMIN")
-            .build()
-        return InMemoryUserDetailsManager(admin)
-    }
+    fun userDetailsService(findUserBySubject: FindUserBySubjectUseCase): UserDetailsService =
+        UserDetailsService { username ->
+            val user = findUserBySubject.findBySubject(username)
+                ?: throw UsernameNotFoundException("Unknown user '$username'")
+            val passwordHash = user.passwordHash
+                ?: throw UsernameNotFoundException("User '$username' cannot sign in with a password")
+            User.builder()
+                .username(user.subject)
+                .password(passwordHash)
+                .authorities(SimpleGrantedAuthority(user.role.authority))
+                .build()
+        }
 
     @Bean
     @ConditionalOnProperty(name = ["burgee.auth.method"], havingValue = "firebase")
@@ -60,7 +63,10 @@ class SecurityConfig(
     }
 
     @Bean
-    fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
+    fun securityFilterChain(
+        http: HttpSecurity,
+        provisionUser: ResolveOrProvisionUserUseCase,
+    ): SecurityFilterChain {
         http
             .cors { it.configurationSource(corsConfigurationSource()) }
             .csrf { it.disable() }
@@ -77,8 +83,8 @@ class SecurityConfig(
 
         when (authProperties.method) {
             AuthProperties.Method.BASIC -> configureBasicAuth(http)
-            AuthProperties.Method.OAUTH2 -> configureOAuth2(http)
-            AuthProperties.Method.FIREBASE -> configureFirebase(http)
+            AuthProperties.Method.OAUTH2 -> configureOAuth2(http, provisionUser)
+            AuthProperties.Method.FIREBASE -> configureFirebase(http, provisionUser)
         }
 
         return http.build()
@@ -92,12 +98,12 @@ class SecurityConfig(
             .logout { it.disable() }
     }
 
-    private fun configureOAuth2(http: HttpSecurity) {
+    private fun configureOAuth2(http: HttpSecurity, provisionUser: ResolveOrProvisionUserUseCase) {
         http
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED) }
             .oauth2Login { oauth2 ->
                 oauth2.defaultSuccessUrl("/flags", true)
-                oauth2.userInfoEndpoint { it.oidcUserService(adminGrantingOidcUserService()) }
+                oauth2.userInfoEndpoint { it.oidcUserService(provisioningOidcUserService(provisionUser)) }
             }
             .logout { logout ->
                 logout.logoutRequestMatcher(PathPatternRequestMatcher.pathPattern("/api/auth/logout"))
@@ -107,12 +113,12 @@ class SecurityConfig(
             .formLogin { it.disable() }
     }
 
-    private fun configureFirebase(http: HttpSecurity) {
+    private fun configureFirebase(http: HttpSecurity, provisionUser: ResolveOrProvisionUserUseCase) {
         http
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .oauth2ResourceServer { oauth2 ->
                 oauth2.jwt { jwt ->
-                    jwt.jwtAuthenticationConverter(firebaseJwtAuthenticationConverter())
+                    jwt.jwtAuthenticationConverter(firebaseJwtAuthenticationConverter(provisionUser))
                 }
             }
             .httpBasic { it.disable() }
@@ -120,20 +126,39 @@ class SecurityConfig(
             .logout { it.disable() }
     }
 
-    private fun firebaseJwtAuthenticationConverter(): JwtAuthenticationConverter {
+    private fun firebaseJwtAuthenticationConverter(
+        provisionUser: ResolveOrProvisionUserUseCase,
+    ): JwtAuthenticationConverter {
         val converter = JwtAuthenticationConverter()
-        converter.setJwtGrantedAuthoritiesConverter {
-            listOf(SimpleGrantedAuthority("ROLE_ADMIN"))
+        converter.setJwtGrantedAuthoritiesConverter { jwt ->
+            val user = provisionUser.resolveOrProvision(
+                ResolveOrProvisionUserUseCase.Command(
+                    subject = jwt.subject,
+                    provider = IdentityProvider.FIREBASE,
+                    email = jwt.getClaimAsString("email"),
+                    displayName = jwt.getClaimAsString("name"),
+                ),
+            )
+            listOf(SimpleGrantedAuthority(user.role.authority))
         }
         return converter
     }
 
-    private fun adminGrantingOidcUserService(): OAuth2UserService<OidcUserRequest, OidcUser> {
+    private fun provisioningOidcUserService(
+        provisionUser: ResolveOrProvisionUserUseCase,
+    ): OAuth2UserService<OidcUserRequest, OidcUser> {
         val delegate = OidcUserService()
         return OAuth2UserService { request ->
             val oidcUser = delegate.loadUser(request)
-            val authorities = oidcUser.authorities.toMutableSet()
-            authorities.add(SimpleGrantedAuthority("ROLE_ADMIN"))
+            val user = provisionUser.resolveOrProvision(
+                ResolveOrProvisionUserUseCase.Command(
+                    subject = oidcUser.subject,
+                    provider = IdentityProvider.OAUTH2,
+                    email = oidcUser.email,
+                    displayName = oidcUser.fullName,
+                ),
+            )
+            val authorities = mutableSetOf<GrantedAuthority>(SimpleGrantedAuthority(user.role.authority))
             DefaultOidcUser(authorities, oidcUser.idToken, oidcUser.userInfo)
         }
     }

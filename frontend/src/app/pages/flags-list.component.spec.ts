@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { FlagsListComponent } from './flags-list.component';
@@ -28,7 +30,12 @@ describe('FlagsListComponent', () => {
   function setup() {
     TestBed.configureTestingModule({
       imports: [FlagsListComponent],
-      providers: [provideRouter([]), { provide: FlagService, useValue: service }],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: FlagService, useValue: service },
+      ],
     });
     fixture = TestBed.createComponent(FlagsListComponent);
     fixture.autoDetectChanges();

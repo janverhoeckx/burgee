@@ -1,5 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { AuthService } from '../core/auth.service';
 import { FeatureFlag, FlagService } from '../core/flag.service';
 
 @Component({
@@ -12,10 +13,12 @@ import { FeatureFlag, FlagService } from '../core/flag.service';
 export class FlagsListComponent implements OnInit {
   private readonly service = inject(FlagService);
   private readonly router = inject(Router);
+  protected readonly auth = inject(AuthService);
 
   protected readonly flags = signal<FeatureFlag[]>([]);
   protected readonly loading = signal(true);
   protected readonly error = signal<string | null>(null);
+  protected readonly forbidden = signal(false);
   protected readonly busy = signal(new Set<string>());
 
   ngOnInit(): void {
@@ -29,8 +32,12 @@ export class FlagsListComponent implements OnInit {
         this.flags.set(flags);
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('Failed to load flags.');
+      error: (err) => {
+        if (err?.status === 403) {
+          this.forbidden.set(true);
+        } else {
+          this.error.set('Failed to load flags.');
+        }
         this.loading.set(false);
       },
     });

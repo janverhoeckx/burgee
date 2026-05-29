@@ -109,12 +109,13 @@ describe('AuthService', () => {
 
       // oauth2 method triggers a follow-up user fetch
       const userReq = httpMock.expectOne('/api/auth/user');
-      userReq.flush({ name: 'Charlie' });
+      userReq.flush({ name: 'Charlie', role: 'ADMIN', isAdmin: true });
 
       expect(service.method()).toBe('oauth2');
       expect(service.providers()).toHaveLength(1);
       expect(service.username()).toBe('Charlie');
       expect(service.isAuthenticated()).toBe(true);
+      expect(service.isAdmin()).toBe(true);
       httpMock.verify();
     });
 
@@ -161,6 +162,10 @@ describe('AuthService', () => {
         .expectOne('/api/auth/info')
         .flush({ method: 'firebase', providers: [], firebase: { apiKey: 'k', authDomain: 'd', projectId: 'p' } });
 
+      // Once the firebase token resolves, the backend user (role) is fetched.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      httpMock.expectOne('/api/auth/user').flush({ name: 'Dana', role: 'USER', isAdmin: false });
+
       await done;
 
       expect(initializeApp).toHaveBeenCalled();
@@ -168,6 +173,7 @@ describe('AuthService', () => {
       expect(service.firebaseToken()).toBe('fb-token');
       expect(service.username()).toBe('Dana');
       expect(service.isAuthenticated()).toBe(true);
+      expect(service.isAdmin()).toBe(false);
       httpMock.verify();
     });
   });
@@ -185,7 +191,7 @@ describe('AuthService', () => {
       const { service, httpMock } = makeService();
       service.init().subscribe();
       httpMock.expectOne('/api/auth/info').flush({ method: 'oauth2', providers: [] });
-      httpMock.expectOne('/api/auth/user').flush({ name: 'Charlie' });
+      httpMock.expectOne('/api/auth/user').flush({ name: 'Charlie', role: 'ADMIN', isAdmin: true });
 
       const hrefSpy = vi.fn();
       Object.defineProperty(window, 'location', {

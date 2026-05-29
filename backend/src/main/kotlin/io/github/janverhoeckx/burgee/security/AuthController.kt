@@ -57,7 +57,14 @@ class AuthController(
         if (authentication == null || !authentication.isAuthenticated) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build()
         }
-        return ResponseEntity.ok(UserInfoResponse(name = authentication.resolveUsername()))
+        val isAdmin = authentication.authorities.any { it.authority == "ROLE_ADMIN" }
+        return ResponseEntity.ok(
+            UserInfoResponse(
+                name = authentication.resolveUsername(),
+                role = if (isAdmin) "ADMIN" else "USER",
+                isAdmin = isAdmin,
+            ),
+        )
     }
 }
 
@@ -81,4 +88,6 @@ data class FirebaseClientConfig(
 
 data class UserInfoResponse(
     val name: String,
+    val role: String,
+    val isAdmin: Boolean,
 )
