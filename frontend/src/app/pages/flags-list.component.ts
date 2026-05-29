@@ -6,76 +6,8 @@ import { FeatureFlag, FlagService } from '../core/flag.service';
   selector: 'app-flags-list',
   standalone: true,
   imports: [RouterLink],
-  template: `
-    <div class="header">
-      <div>
-        <h1>Feature flags</h1>
-        <p class="muted">{{ flags().length }} flag{{ flags().length === 1 ? '' : 's' }}</p>
-      </div>
-      <button class="primary" routerLink="/flags/new">New flag</button>
-    </div>
-
-    @if (loading()) {
-      <p class="muted">Loading…</p>
-    } @else if (error()) {
-      <div class="error">{{ error() }}</div>
-    } @else if (flags().length === 0) {
-      <div class="empty">
-        <p>No flags yet.</p>
-        <button class="primary" routerLink="/flags/new">Create your first flag</button>
-      </div>
-    } @else {
-      <table class="flags">
-        <thead>
-          <tr>
-            <th>Key</th>
-            <th>Name</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (flag of flags(); track flag.id) {
-            <tr>
-              <td><code>{{ flag.key }}</code></td>
-              <td>
-                <div>{{ flag.name }}</div>
-                @if (flag.description) { <div class="muted small">{{ flag.description }}</div> }
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  class="toggle"
-                  [checked]="flag.enabled"
-                  [disabled]="busy().has(flag.id)"
-                  (change)="toggle(flag)"
-                />
-              </td>
-              <td class="actions">
-                <button (click)="edit(flag)">Edit</button>
-                <button class="danger" (click)="remove(flag)">Delete</button>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    }
-  `,
-  styles: [
-    `
-      .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; }
-      h1 { margin: 0; font-size: 1.5rem; }
-      .muted { color: var(--muted); }
-      .small { font-size: 0.85rem; margin-top: 0.2rem; }
-      .empty { text-align: center; padding: 3rem 1rem; background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); }
-      table.flags { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-      th, td { text-align: left; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
-      th { color: var(--muted); font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; background: var(--surface-2); }
-      tr:last-child td { border-bottom: none; }
-      code { background: var(--surface-2); padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.85rem; }
-      td.actions { white-space: nowrap; display: flex; gap: 0.5rem; justify-content: flex-end; }
-    `,
-  ],
+  templateUrl: './flags-list.component.html',
+  styleUrl: './flags-list.component.scss',
 })
 export class FlagsListComponent implements OnInit {
   private readonly service = inject(FlagService);

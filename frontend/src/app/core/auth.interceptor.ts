@@ -28,11 +28,17 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(outgoing).pipe(
     catchError((err) => {
-      if (err?.status === 401 && req.url.includes('/api/admin/')) {
-        if (auth.method() === 'basic') {
-          auth.clear();
+      if (err?.status === 401) {
+        const shouldRedirect =
+          auth.method() === 'firebase'
+            ? req.url.includes('/api/')
+            : req.url.includes('/api/admin/');
+        if (shouldRedirect) {
+          if (auth.method() === 'basic') {
+            auth.clear();
+          }
+          void router.navigate(['/login']);
         }
-        void router.navigate(['/login']);
       }
       return throwError(() => err);
     }),

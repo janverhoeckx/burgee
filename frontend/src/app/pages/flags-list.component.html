@@ -1,0 +1,53 @@
+<div class="header">
+  <div>
+    <h1>Feature flags</h1>
+    <p class="muted">{{ flags().length }} flag{{ flags().length === 1 ? '' : 's' }}</p>
+  </div>
+  <button class="primary" routerLink="/flags/new">New flag</button>
+</div>
+
+@if (loading()) {
+  <p class="muted">Loading…</p>
+} @else if (error()) {
+  <div class="error">{{ error() }}</div>
+} @else if (flags().length === 0) {
+  <div class="empty">
+    <p>No flags yet.</p>
+    <button class="primary" routerLink="/flags/new">Create your first flag</button>
+  </div>
+} @else {
+  <table class="flags">
+    <thead>
+      <tr>
+        <th>Key</th>
+        <th>Name</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (flag of flags(); track flag.id) {
+        <tr>
+          <td><code>{{ flag.key }}</code></td>
+          <td>
+            <div>{{ flag.name }}</div>
+            @if (flag.description) { <div class="muted small">{{ flag.description }}</div> }
+          </td>
+          <td>
+            <input
+              type="checkbox"
+              class="toggle"
+              [checked]="flag.enabled"
+              [disabled]="busy().has(flag.id)"
+              (change)="toggle(flag)"
+            />
+          </td>
+          <td class="actions">
+            <button (click)="edit(flag)">Edit</button>
+            <button class="danger" (click)="remove(flag)">Delete</button>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+}

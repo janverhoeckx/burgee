@@ -7,63 +7,8 @@ import { FlagService } from '../core/flag.service';
   selector: 'app-flag-form',
   standalone: true,
   imports: [ReactiveFormsModule, RouterLink],
-  template: `
-    <a routerLink="/flags" class="back">&larr; Back to flags</a>
-    <div class="card">
-      <h1>{{ id() ? 'Edit flag' : 'New flag' }}</h1>
-
-      <form [formGroup]="form" (ngSubmit)="submit()">
-        <div class="field">
-          <label for="key">Key</label>
-          <input
-            id="key"
-            type="text"
-            formControlName="key"
-            placeholder="my-feature"
-            [readonly]="!!id()"
-          />
-          @if (form.controls.key.touched && form.controls.key.errors?.['pattern']) {
-            <div class="error">Lowercase letters, digits, and . _ - only.</div>
-          }
-        </div>
-
-        <div class="field">
-          <label for="name">Name</label>
-          <input id="name" type="text" formControlName="name" placeholder="My new feature" />
-        </div>
-
-        <div class="field">
-          <label for="description">Description</label>
-          <textarea id="description" rows="3" formControlName="description"></textarea>
-        </div>
-
-        <div class="field row">
-          <input id="enabled" type="checkbox" class="toggle" formControlName="enabled" />
-          <label for="enabled" class="inline">Enabled</label>
-        </div>
-
-        @if (error()) { <div class="error">{{ error() }}</div> }
-
-        <div class="actions">
-          <button type="button" routerLink="/flags">Cancel</button>
-          <button class="primary" type="submit" [disabled]="form.invalid || saving()">
-            {{ saving() ? 'Saving…' : 'Save' }}
-          </button>
-        </div>
-      </form>
-    </div>
-  `,
-  styles: [
-    `
-      .back { color: var(--muted); font-size: 0.9rem; display: inline-block; margin-bottom: 1rem; }
-      .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; }
-      h1 { margin: 0 0 1.25rem; font-size: 1.4rem; }
-      input[readonly] { color: var(--muted); }
-      .row { display: flex; align-items: center; gap: 0.7rem; }
-      .row label.inline { margin: 0; color: var(--text); font-size: 0.95rem; }
-      .actions { display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 1.25rem; }
-    `,
-  ],
+  templateUrl: './flag-form.component.html',
+  styleUrl: './flag-form.component.scss',
 })
 export class FlagFormComponent implements OnInit {
   private readonly fb = inject(FormBuilder);

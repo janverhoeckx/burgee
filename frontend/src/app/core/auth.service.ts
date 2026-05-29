@@ -151,13 +151,20 @@ export class AuthService {
           }
         };
         if (user) {
-          user.getIdToken().then((token) => {
-            this._firebaseToken.set(token);
-            this._firebaseUser.set({
-              name: user.displayName || user.email || user.uid,
-            });
-            complete();
-          });
+          user.getIdToken().then(
+            (token) => {
+              this._firebaseToken.set(token);
+              this._firebaseUser.set({
+                name: user.displayName || user.email || user.uid,
+              });
+              complete();
+            },
+            () => {
+              this._firebaseToken.set(null);
+              this._firebaseUser.set(null);
+              complete();
+            },
+          );
         } else {
           this._firebaseToken.set(null);
           this._firebaseUser.set(null);

@@ -1,0 +1,44 @@
+<div class="card">
+  <h1>Sign in</h1>
+  @if (auth.method() === 'firebase') {
+    <p class="muted">Sign in with your Google account.</p>
+    @if (error()) {
+      <div class="error">{{ error() }}</div>
+    }
+    <button class="provider-btn" (click)="signInWithGoogle()" [disabled]="loading()">
+      {{ loading() ? 'Signing in…' : 'Sign in with Google' }}
+    </button>
+  } @else if (auth.method() === 'oauth2') {
+    <p class="muted">Sign in with your identity provider.</p>
+    <div class="providers">
+      @for (provider of auth.providers(); track provider.id) {
+        <a class="provider-btn" [href]="providerUrl(provider)">
+          Sign in with {{ provider.name }}
+        </a>
+      }
+    </div>
+  } @else {
+    <p class="muted">Use your Burgee admin credentials.</p>
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" type="text" formControlName="username" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          autocomplete="current-password"
+        />
+      </div>
+      @if (error()) {
+        <div class="error">{{ error() }}</div>
+      }
+      <button class="primary" type="submit" [disabled]="form.invalid || loading()">
+        {{ loading() ? 'Signing in…' : 'Sign in' }}
+      </button>
+    </form>
+  }
+</div>

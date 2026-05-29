@@ -1,0 +1,14 @@
+<header class="topbar">
+  <a routerLink="/flags" class="brand">
+    <span class="dot"></span>Burgee
+  </a>
+  @if (auth.isAuthenticated()) {
+    <div class="actions">
+      <span class="user">{{ auth.username() }}</span>
+      <button (click)="logout()">Sign out</button>
+    </div>
+  }
+</header>
+<main class="content">
+  <router-outlet />
+</main>
