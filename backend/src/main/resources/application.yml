@@ -63,4 +63,4 @@ burgee:
 logging:
   level:
     root: INFO
-    io.burgee: INFO
+    io.github.janverhoeckx.burgee: INFO

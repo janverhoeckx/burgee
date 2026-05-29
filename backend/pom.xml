@@ -12,7 +12,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>io.burgee</groupId>
+    <groupId>io.github.janverhoeckx</groupId>
     <artifactId>burgee</artifactId>
     <version>0.1.0</version>
     <packaging>jar</packaging>
