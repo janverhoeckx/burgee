@@ -11,7 +11,7 @@ data class AdminProperties(
     /**
      * Identity-provider subject (the `sub`/uid the IDP issues) that should be granted
      * admin on startup. Lets a first admin be bootstrapped from configuration when using
-     * OAuth2/OIDC or Firebase, without manual database changes.
+     * JWT, without manual database changes.
      */
     val subject: String = "",
 )

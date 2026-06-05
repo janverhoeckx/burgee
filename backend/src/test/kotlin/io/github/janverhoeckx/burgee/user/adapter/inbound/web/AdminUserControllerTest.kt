@@ -31,7 +31,7 @@ class AdminUserControllerTest {
         displayName = "Jane",
         role = Role.USER,
         passwordHash = null,
-        provider = IdentityProvider.OAUTH2,
+        provider = IdentityProvider.JWT,
         createdAt = now,
         updatedAt = now,
     )
@@ -41,7 +41,7 @@ class AdminUserControllerTest {
     private val createUser = mockk<CreateUserUseCase>()
     private val updateUser = mockk<UpdateUserUseCase>()
     private val deleteUser = mockk<DeleteUserUseCase>()
-    private val authProperties = AuthProperties(method = AuthProperties.Method.OAUTH2)
+    private val authProperties = AuthProperties(method = AuthProperties.Method.JWT)
 
     private val controller = AdminUserController(
         listUsers = listUsers,
@@ -99,7 +99,7 @@ class AdminUserControllerTest {
                     email = null,
                     displayName = null,
                     role = Role.ADMIN,
-                    provider = IdentityProvider.OAUTH2,
+                    provider = IdentityProvider.JWT,
                     password = "secret",
                 ),
             )

@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { apiBaseUrl } from './api.config';
 
 export type Role = 'ADMIN' | 'USER' | 'NEW';
-export type IdentityProvider = 'BASIC' | 'OAUTH2' | 'FIREBASE';
+export type IdentityProvider = 'BASIC' | 'JWT';
 
 export interface User {
   id: string;

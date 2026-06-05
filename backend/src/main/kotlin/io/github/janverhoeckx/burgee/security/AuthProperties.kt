@@ -6,5 +6,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class AuthProperties(
     val method: Method = Method.BASIC,
 ) {
-    enum class Method { BASIC, OAUTH2, FIREBASE }
+    enum class Method { BASIC, JWT }
 }

@@ -12,19 +12,15 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   const needsAuth = req.url.includes('/api/admin/') || req.url.includes('/api/auth/user');
 
-  if (auth.method() === 'firebase') {
-    const token = auth.firebaseToken();
+  if (auth.method() === 'jwt') {
+    const token = auth.jwtToken();
     if (token && req.url.includes('/api/')) {
       outgoing = req.clone({ setHeaders: { Authorization: `Bearer ${token}` } });
     }
   } else if (needsAuth) {
-    if (auth.method() === 'basic') {
-      const header = auth.basicHeader();
-      if (header) {
-        outgoing = req.clone({ setHeaders: { Authorization: header } });
-      }
-    } else {
-      outgoing = req.clone({ withCredentials: true });
+    const header = auth.basicHeader();
+    if (header) {
+      outgoing = req.clone({ setHeaders: { Authorization: header } });
     }
   }
 
@@ -32,13 +28,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     catchError((err) => {
       if (err?.status === 401) {
         const shouldRedirect =
-          auth.method() === 'firebase'
+          auth.method() === 'jwt'
             ? req.url.includes('/api/')
             : req.url.includes('/api/admin/');
         if (shouldRedirect) {
-          if (auth.method() === 'basic') {
-            auth.clear();
-          }
+          auth.clear();
           void router.navigate(['/login']);
         }
       }

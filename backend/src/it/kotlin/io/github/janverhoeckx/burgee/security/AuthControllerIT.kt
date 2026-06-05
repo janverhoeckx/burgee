@@ -41,8 +41,7 @@ class AuthControllerIT(
         }.andExpect {
             status { isOk() }
             jsonPath("$.method") { value("basic") }
-            jsonPath("$.providers") { isEmpty() }
-            jsonPath("$.firebase") { doesNotExist() }
+            jsonPath("$.oidc") { doesNotExist() }
         }
     }
 

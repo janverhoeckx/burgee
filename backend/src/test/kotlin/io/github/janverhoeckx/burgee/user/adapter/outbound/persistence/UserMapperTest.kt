@@ -56,12 +56,12 @@ class UserMapperTest {
 
     @Test
     fun `toDomain parses role and provider enums`() {
-        val row = domain.copy(role = Role.NEW, provider = IdentityProvider.FIREBASE).toRow(newRecord = false)
+        val row = domain.copy(role = Role.NEW, provider = IdentityProvider.JWT).toRow(newRecord = false)
 
         val mapped = row.toDomain()
 
         assertThat(mapped.role).isEqualTo(Role.NEW)
-        assertThat(mapped.provider).isEqualTo(IdentityProvider.FIREBASE)
+        assertThat(mapped.provider).isEqualTo(IdentityProvider.JWT)
     }
 
     @Test

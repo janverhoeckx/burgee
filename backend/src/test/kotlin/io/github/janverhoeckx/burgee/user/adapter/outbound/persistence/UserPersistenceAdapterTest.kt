@@ -27,7 +27,7 @@ class UserPersistenceAdapterTest {
         displayName = "Jane",
         role = Role.USER,
         passwordHash = null,
-        provider = IdentityProvider.OAUTH2,
+        provider = IdentityProvider.JWT,
         createdAt = now,
         updatedAt = now,
     )

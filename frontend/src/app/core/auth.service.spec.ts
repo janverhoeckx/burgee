@@ -5,24 +5,21 @@ import {
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
 
-const { onIdTokenChanged, signInWithPopup, signOut, getAuth, initializeApp } = vi.hoisted(
-  () => ({
-    onIdTokenChanged: vi.fn((..._args: any[]) => undefined),
-    signInWithPopup: vi.fn((..._args: any[]) => undefined),
-    signOut: vi.fn((..._args: any[]) => undefined),
-    getAuth: vi.fn((..._args: any[]) => ({}) as unknown),
-    initializeApp: vi.fn((..._args: any[]) => ({}) as unknown),
-  }),
-);
+const { getUser, signinRedirect, signinRedirectCallback, removeUser } = vi.hoisted(() => ({
+  getUser: vi.fn((..._args: any[]) => Promise.resolve(null as unknown)),
+  signinRedirect: vi.fn((..._args: any[]) => Promise.resolve()),
+  signinRedirectCallback: vi.fn((..._args: any[]) => Promise.resolve(null as unknown)),
+  removeUser: vi.fn((..._args: any[]) => Promise.resolve()),
+}));
 
-vi.mock('firebase/app', () => ({ initializeApp }));
-
-vi.mock('firebase/auth', () => ({
-  GoogleAuthProvider: class {},
-  getAuth,
-  onIdTokenChanged,
-  signInWithPopup,
-  signOut,
+vi.mock('oidc-client-ts', () => ({
+  UserManager: class {
+    getUser = getUser;
+    signinRedirect = signinRedirect;
+    signinRedirectCallback = signinRedirectCallback;
+    removeUser = removeUser;
+  },
+  WebStorageStateStore: class {},
 }));
 
 import { AuthService } from './auth.service';
@@ -97,28 +94,6 @@ describe('AuthService', () => {
   });
 
   describe('init', () => {
-    it('sets method and providers from the auth info endpoint', () => {
-      const { service, httpMock } = makeService();
-      service.init().subscribe();
-
-      const req = httpMock.expectOne('/api/auth/info');
-      req.flush({
-        method: 'oauth2',
-        providers: [{ id: 'google', name: 'Google', loginUrl: '/oauth/google' }],
-      });
-
-      // oauth2 method triggers a follow-up user fetch
-      const userReq = httpMock.expectOne('/api/auth/user');
-      userReq.flush({ name: 'Charlie', role: 'ADMIN', isAdmin: true });
-
-      expect(service.method()).toBe('oauth2');
-      expect(service.providers()).toHaveLength(1);
-      expect(service.username()).toBe('Charlie');
-      expect(service.isAuthenticated()).toBe(true);
-      expect(service.isAdmin()).toBe(true);
-      httpMock.verify();
-    });
-
     it('swallows errors from the auth info endpoint and stays on basic', () => {
       const { service, httpMock } = makeService();
       let completed = false;
@@ -131,26 +106,32 @@ describe('AuthService', () => {
       httpMock.verify();
     });
 
-    it('keeps oauth unauthenticated when the user fetch fails', () => {
+    it('keeps jwt unauthenticated when the stored token fails to resolve', async () => {
+      getUser.mockResolvedValue(null);
+
       const { service, httpMock } = makeService();
-      service.init().subscribe();
+      const done = new Promise<void>((resolve) =>
+        service.init().subscribe({ complete: resolve }),
+      );
 
-      httpMock.expectOne('/api/auth/info').flush({ method: 'oauth2', providers: [] });
-      httpMock.expectOne('/api/auth/user').error(new ProgressEvent('error'));
+      httpMock.expectOne('/api/auth/info').flush({
+        method: 'jwt',
+        oidc: { issuerUri: 'https://idp.example.com', clientId: 'spa', scope: 'openid' },
+      });
 
-      expect(service.method()).toBe('oauth2');
+      await done;
+
+      expect(service.method()).toBe('jwt');
       expect(service.isAuthenticated()).toBe(false);
       httpMock.verify();
     });
 
-    it('initializes firebase and resolves the first token from onIdTokenChanged', async () => {
-      onIdTokenChanged.mockImplementation((_auth: unknown, cb: (user: unknown) => void) => {
-        cb({
-          displayName: 'Dana',
-          email: 'dana@example.com',
-          uid: 'uid-1',
-          getIdToken: () => Promise.resolve('fb-token'),
-        });
+    it('initializes the oidc client and resolves the stored user token', async () => {
+      getUser.mockResolvedValue({
+        id_token: 'jwt-token',
+        access_token: 'opaque-access-token',
+        expired: false,
+        profile: { name: 'Dana', email: 'dana@example.com', sub: 'uid-1' },
       });
 
       const { service, httpMock } = makeService();
@@ -158,19 +139,20 @@ describe('AuthService', () => {
         service.init().subscribe({ complete: resolve }),
       );
 
-      httpMock
-        .expectOne('/api/auth/info')
-        .flush({ method: 'firebase', providers: [], firebase: { apiKey: 'k', authDomain: 'd', projectId: 'p' } });
+      httpMock.expectOne('/api/auth/info').flush({
+        method: 'jwt',
+        oidc: { issuerUri: 'https://idp.example.com', clientId: 'spa', scope: 'openid' },
+      });
 
-      // Once the firebase token resolves, the backend user (role) is fetched.
+      // Once the stored token resolves, the backend user (role) is fetched.
       await new Promise((resolve) => setTimeout(resolve, 0));
       httpMock.expectOne('/api/auth/user').flush({ name: 'Dana', role: 'USER', isAdmin: false });
 
       await done;
 
-      expect(initializeApp).toHaveBeenCalled();
-      expect(service.method()).toBe('firebase');
-      expect(service.firebaseToken()).toBe('fb-token');
+      expect(getUser).toHaveBeenCalled();
+      expect(service.method()).toBe('jwt');
+      expect(service.jwtToken()).toBe('opaque-access-token');
       expect(service.username()).toBe('Dana');
       expect(service.isAuthenticated()).toBe(true);
       expect(service.isAdmin()).toBe(false);
@@ -178,30 +160,12 @@ describe('AuthService', () => {
     });
   });
 
-  describe('signInWithGoogle', () => {
-    it('does nothing when firebase is not initialized', async () => {
+  describe('signIn', () => {
+    it('does nothing when the oidc client is not initialized', async () => {
       const { service } = makeService();
-      await service.signInWithGoogle();
-      expect(signInWithPopup).not.toHaveBeenCalled();
+      await service.signIn();
+      expect(signinRedirect).not.toHaveBeenCalled();
     });
   });
 
-  describe('clear for oauth', () => {
-    it('redirects to the logout endpoint', () => {
-      const { service, httpMock } = makeService();
-      service.init().subscribe();
-      httpMock.expectOne('/api/auth/info').flush({ method: 'oauth2', providers: [] });
-      httpMock.expectOne('/api/auth/user').flush({ name: 'Charlie', role: 'ADMIN', isAdmin: true });
-
-      const hrefSpy = vi.fn();
-      Object.defineProperty(window, 'location', {
-        value: { ...window.location, set href(v: string) { hrefSpy(v); } },
-        writable: true,
-      });
-
-      service.clear();
-      expect(hrefSpy).toHaveBeenCalledWith('/api/auth/logout');
-      httpMock.verify();
-    });
-  });
 });

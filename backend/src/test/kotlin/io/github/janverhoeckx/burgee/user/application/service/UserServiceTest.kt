@@ -38,7 +38,7 @@ class UserServiceTest {
         displayName = "Jane",
         role = Role.USER,
         passwordHash = null,
-        provider = IdentityProvider.OAUTH2,
+        provider = IdentityProvider.JWT,
         createdAt = now.minusSeconds(3600),
         updatedAt = now.minusSeconds(3600),
     )
@@ -48,7 +48,7 @@ class UserServiceTest {
         every { repository.existsBySubject("jane") } returns true
 
         val result = service.create(
-            CreateUserUseCase.Command("jane", null, null, Role.USER, IdentityProvider.OAUTH2, null),
+            CreateUserUseCase.Command("jane", null, null, Role.USER, IdentityProvider.JWT, null),
         )
 
         assertThat(result).isEqualTo(CreateUserUseCase.Result.DuplicateSubject("jane"))
@@ -147,14 +147,14 @@ class UserServiceTest {
         val user = service.resolveOrProvision(
             ResolveOrProvisionUserUseCase.Command(
                 subject = "sub-new",
-                provider = IdentityProvider.FIREBASE,
+                provider = IdentityProvider.JWT,
                 email = "new@example.com",
                 displayName = "New",
             ),
         )
 
         assertThat(user.role).isEqualTo(Role.NEW)
-        assertThat(captured.captured.provider).isEqualTo(IdentityProvider.FIREBASE)
+        assertThat(captured.captured.provider).isEqualTo(IdentityProvider.JWT)
         assertThat(captured.captured.subject).isEqualTo("sub-new")
     }
 
@@ -163,7 +163,7 @@ class UserServiceTest {
         every { repository.findBySubject("jane") } returns existing
 
         val user = service.resolveOrProvision(
-            ResolveOrProvisionUserUseCase.Command("jane", IdentityProvider.OAUTH2, "jane@example.com", "Jane"),
+            ResolveOrProvisionUserUseCase.Command("jane", IdentityProvider.JWT, "jane@example.com", "Jane"),
         )
 
         assertThat(user).isEqualTo(existing)
@@ -177,7 +177,7 @@ class UserServiceTest {
         every { repository.save(capture(captured)) } answers { captured.captured }
 
         service.resolveOrProvision(
-            ResolveOrProvisionUserUseCase.Command("jane", IdentityProvider.OAUTH2, "updated@example.com", "Jane R"),
+            ResolveOrProvisionUserUseCase.Command("jane", IdentityProvider.JWT, "updated@example.com", "Jane R"),
         )
 
         assertThat(captured.captured.email).isEqualTo("updated@example.com")
@@ -207,12 +207,12 @@ class UserServiceTest {
         every { repository.save(capture(captured)) } answers { captured.captured }
 
         service.ensureBootstrapAdmin(
-            EnsureBootstrapAdminUseCase.Command(IdentityProvider.OAUTH2, null, null, "google-sub-123"),
+            EnsureBootstrapAdminUseCase.Command(IdentityProvider.JWT, null, null, "google-sub-123"),
         )
 
         assertThat(captured.captured.subject).isEqualTo("google-sub-123")
         assertThat(captured.captured.role).isEqualTo(Role.ADMIN)
-        assertThat(captured.captured.provider).isEqualTo(IdentityProvider.OAUTH2)
+        assertThat(captured.captured.provider).isEqualTo(IdentityProvider.JWT)
     }
 
     @Test
@@ -223,7 +223,7 @@ class UserServiceTest {
         every { repository.save(capture(captured)) } answers { captured.captured }
 
         service.ensureBootstrapAdmin(
-            EnsureBootstrapAdminUseCase.Command(IdentityProvider.OAUTH2, null, null, "google-sub-123"),
+            EnsureBootstrapAdminUseCase.Command(IdentityProvider.JWT, null, null, "google-sub-123"),
         )
 
         assertThat(captured.captured.id).isEqualTo(provisioned.id)
@@ -233,7 +233,7 @@ class UserServiceTest {
     @Test
     fun `ensureBootstrapAdmin does nothing for idp when no admin subject configured`() {
         service.ensureBootstrapAdmin(
-            EnsureBootstrapAdminUseCase.Command(IdentityProvider.FIREBASE, null, null, ""),
+            EnsureBootstrapAdminUseCase.Command(IdentityProvider.JWT, null, null, ""),
         )
 
         verify(exactly = 0) { repository.save(any()) }

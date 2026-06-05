@@ -18,7 +18,7 @@ class UserTest {
             email = "a@example.com",
             displayName = "Ada",
             role = Role.NEW,
-            provider = IdentityProvider.OAUTH2,
+            provider = IdentityProvider.JWT,
             now = now,
             id = id,
         )
@@ -28,7 +28,7 @@ class UserTest {
         assertThat(user.email).isEqualTo("a@example.com")
         assertThat(user.displayName).isEqualTo("Ada")
         assertThat(user.role).isEqualTo(Role.NEW)
-        assertThat(user.provider).isEqualTo(IdentityProvider.OAUTH2)
+        assertThat(user.provider).isEqualTo(IdentityProvider.JWT)
         assertThat(user.passwordHash).isNull()
         assertThat(user.createdAt).isEqualTo(now)
         assertThat(user.updatedAt).isEqualTo(now)
@@ -36,7 +36,7 @@ class UserTest {
 
     @Test
     fun `withRole changes role and refreshes updatedAt while preserving createdAt`() {
-        val original = User.create("s", null, null, Role.NEW, IdentityProvider.OAUTH2, now = now, id = id)
+        val original = User.create("s", null, null, Role.NEW, IdentityProvider.JWT, now = now, id = id)
 
         val promoted = original.withRole(Role.ADMIN, later)
 
@@ -47,7 +47,7 @@ class UserTest {
 
     @Test
     fun `withProfile replaces email and displayName and refreshes updatedAt`() {
-        val original = User.create("s", "old@example.com", "Old", Role.USER, IdentityProvider.FIREBASE, now = now, id = id)
+        val original = User.create("s", "old@example.com", "Old", Role.USER, IdentityProvider.JWT, now = now, id = id)
 
         val refreshed = original.withProfile("new@example.com", "New", later)
 
@@ -69,7 +69,7 @@ class UserTest {
 
     @Test
     fun `copy helpers leave the original instance unchanged`() {
-        val original = User.create("s", "e@example.com", "Name", Role.NEW, IdentityProvider.OAUTH2, now = now, id = id)
+        val original = User.create("s", "e@example.com", "Name", Role.NEW, IdentityProvider.JWT, now = now, id = id)
 
         original.withRole(Role.ADMIN, later)
         original.withProfile("other@example.com", "Other", later)

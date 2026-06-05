@@ -14,9 +14,9 @@ import { authInterceptor } from './auth.interceptor';
 import { AuthService } from './auth.service';
 
 describe('authInterceptor', () => {
-  const method = signal<'basic' | 'oauth2' | 'firebase'>('basic');
+  const method = signal<'basic' | 'jwt'>('basic');
   const basicHeader = signal<string | null>(null);
-  const firebaseToken = signal<string | null>(null);
+  const jwtToken = signal<string | null>(null);
   const clear = vi.fn();
   const navigate = vi.fn();
 
@@ -26,7 +26,7 @@ describe('authInterceptor', () => {
   beforeEach(() => {
     method.set('basic');
     basicHeader.set(null);
-    firebaseToken.set(null);
+    jwtToken.set(null);
     clear.mockClear();
     navigate.mockClear();
 
@@ -36,7 +36,7 @@ describe('authInterceptor', () => {
         provideHttpClientTesting(),
         {
           provide: AuthService,
-          useValue: { method, basicHeader, firebaseToken, clear },
+          useValue: { method, basicHeader, jwtToken, clear },
         },
         { provide: Router, useValue: { navigate } },
       ],
@@ -65,22 +65,13 @@ describe('authInterceptor', () => {
     req.flush({});
   });
 
-  it('sends credentials for oauth2 admin requests', () => {
-    method.set('oauth2');
+  it('attaches a bearer token for jwt api requests', () => {
+    method.set('jwt');
+    jwtToken.set('jwt-token');
     http.get('/api/admin/flags').subscribe();
 
     const req = httpMock.expectOne('/api/admin/flags');
-    expect(req.request.withCredentials).toBe(true);
-    req.flush([]);
-  });
-
-  it('attaches a bearer token for firebase api requests', () => {
-    method.set('firebase');
-    firebaseToken.set('fb-token');
-    http.get('/api/admin/flags').subscribe();
-
-    const req = httpMock.expectOne('/api/admin/flags');
-    expect(req.request.headers.get('Authorization')).toBe('Bearer fb-token');
+    expect(req.request.headers.get('Authorization')).toBe('Bearer jwt-token');
     req.flush([]);
   });
 

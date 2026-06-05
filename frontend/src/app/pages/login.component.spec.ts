@@ -7,17 +7,16 @@ import {
 import { provideRouter, Router } from '@angular/router';
 import { signal, WritableSignal } from '@angular/core';
 import { LoginComponent } from './login.component';
-import { AuthService, OAuthProvider } from '../core/auth.service';
+import { AuthService } from '../core/auth.service';
 
 describe('LoginComponent', () => {
   let fixture: ComponentFixture<LoginComponent>;
   let httpMock: HttpTestingController;
   let auth: {
-    method: WritableSignal<'basic' | 'oauth2' | 'firebase'>;
-    providers: WritableSignal<OAuthProvider[]>;
+    method: WritableSignal<'basic' | 'jwt'>;
     isAuthenticated: WritableSignal<boolean>;
     storeBasic: ReturnType<typeof vi.fn>;
-    signInWithGoogle: ReturnType<typeof vi.fn>;
+    signIn: ReturnType<typeof vi.fn>;
   };
 
   function setup() {
@@ -38,10 +37,9 @@ describe('LoginComponent', () => {
   beforeEach(() => {
     auth = {
       method: signal('basic'),
-      providers: signal<OAuthProvider[]>([]),
       isAuthenticated: signal(false),
       storeBasic: vi.fn(),
-      signInWithGoogle: vi.fn(() => Promise.resolve()),
+      signIn: vi.fn(() => Promise.resolve()),
     };
   });
 
@@ -109,27 +107,13 @@ describe('LoginComponent', () => {
     expect(auth.storeBasic).not.toHaveBeenCalled();
   });
 
-  it('renders provider links in oauth2 mode', async () => {
-    auth.method.set('oauth2');
-    auth.providers.set([{ id: 'google', name: 'Google', loginUrl: '/oauth/google' }]);
+  it('triggers an oidc redirect sign-in in jwt mode', async () => {
+    auth.method.set('jwt');
     setup();
     await fixture.whenStable();
 
-    const link = fixture.nativeElement.querySelector('a.provider-btn') as HTMLAnchorElement;
-    expect(link.textContent).toContain('Sign in with Google');
-    expect(link.getAttribute('href')).toContain('/oauth/google');
-  });
+    await fixture.componentInstance.signIn();
 
-  it('signs in with Google and navigates in firebase mode', async () => {
-    auth.method.set('firebase');
-    setup();
-    await fixture.whenStable();
-    const router = TestBed.inject(Router);
-    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
-
-    await fixture.componentInstance.signInWithGoogle();
-
-    expect(auth.signInWithGoogle).toHaveBeenCalled();
-    expect(navigate).toHaveBeenCalledWith(['/flags']);
+    expect(auth.signIn).toHaveBeenCalled();
   });
 });

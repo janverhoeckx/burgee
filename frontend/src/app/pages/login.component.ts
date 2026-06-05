@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { AuthService, OAuthProvider } from '../core/auth.service';
+import { AuthService } from '../core/auth.service';
 import { apiBaseUrl } from '../core/api.config';
 
 @Component({
@@ -32,23 +32,14 @@ export class LoginComponent implements OnInit {
     }
   }
 
-  providerUrl(provider: OAuthProvider): string {
-    return `${apiBaseUrl()}${provider.loginUrl}`;
-  }
-
-  async signInWithGoogle(): Promise<void> {
+  async signIn(): Promise<void> {
     this.loading.set(true);
     this.error.set(null);
     try {
-      await this.auth.signInWithGoogle();
-      void this.router.navigate(['/flags']);
-    } catch (e: any) {
-      const code = e?.code as string | undefined;
-      if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
-        console.error('Firebase sign-in failed', e);
-        this.error.set(code ? `Sign-in failed (${code})` : 'Sign-in failed');
-      }
-    } finally {
+      await this.auth.signIn();
+    } catch (e) {
+      console.error('OIDC sign-in failed', e);
+      this.error.set('Sign-in failed');
       this.loading.set(false);
     }
   }

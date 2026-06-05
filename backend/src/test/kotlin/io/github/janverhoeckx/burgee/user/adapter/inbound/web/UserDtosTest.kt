@@ -52,7 +52,7 @@ class UserDtosTest {
             role = Role.ADMIN,
             provider = IdentityProvider.BASIC,
             password = "secret",
-        ).toCommand(defaultProvider = IdentityProvider.OAUTH2)
+        ).toCommand(defaultProvider = IdentityProvider.JWT)
 
         assertThat(command.subject).isEqualTo("ops")
         assertThat(command.email).isEqualTo("ops@example.com")
@@ -64,9 +64,9 @@ class UserDtosTest {
 
     @Test
     fun `CreateUserRequest falls back to the default provider when none given`() {
-        val command = CreateUserRequest(subject = "ops").toCommand(defaultProvider = IdentityProvider.OAUTH2)
+        val command = CreateUserRequest(subject = "ops").toCommand(defaultProvider = IdentityProvider.JWT)
 
-        assertThat(command.provider).isEqualTo(IdentityProvider.OAUTH2)
+        assertThat(command.provider).isEqualTo(IdentityProvider.JWT)
         assertThat(command.role).isEqualTo(Role.USER)
     }
 

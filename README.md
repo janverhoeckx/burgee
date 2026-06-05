@@ -6,7 +6,7 @@ A simple, self-hostable, open-source feature flag service.
 - **Hexagonal architecture** — domain, ports, and adapters cleanly separated; swapping persistence or transport requires no changes to the core.
 - **Admin dashboard** — Angular 21 SPA, built into the backend image and served from the same origin.
 - **User management** — create, edit, and delete users from the dashboard. Role-based access control with three roles: Admin, User, and New.
-- **Flexible authentication** — HTTP Basic (default), OAuth2/OIDC, or Firebase Auth. Switch with a single environment variable.
+- **Flexible authentication** — HTTP Basic (default) or stateless JWT against any OIDC provider. Switch with a single environment variable.
 - **Auto-provisioning** — SSO users are automatically created on first login with the `NEW` role; an admin upgrades them.
 - **Public REST API** — fetch flags from your apps with a single GET.
 - **Single container** — frontend and backend ship together; one image, one port.
@@ -22,7 +22,7 @@ Then open:
 - **Dashboard**: http://localhost:8080 (default login: `admin` / `admin`)
 - **Public flags API**: http://localhost:8080/api/v1/flags
 
-> **Change the default admin credentials** before exposing Burgee anywhere. Set `BURGEE_ADMIN_USERNAME` and `BURGEE_ADMIN_PASSWORD` in your environment or a `.env` file. For OAuth2 or Firebase, set `BURGEE_AUTH_METHOD` and `BURGEE_ADMIN_SUBJECT` instead.
+> **Change the default admin credentials** before exposing Burgee anywhere. Set `BURGEE_ADMIN_USERNAME` and `BURGEE_ADMIN_PASSWORD` in your environment or a `.env` file. For JWT, set `BURGEE_AUTH_METHOD` and `BURGEE_ADMIN_SUBJECT` instead.
 
 ## REST API
 
@@ -57,7 +57,7 @@ DELETE /api/admin/users/{id}
 ### Auth
 
 ```
-GET    /api/auth/info                   → { "method": "basic", "providers": [], "firebase": null }  (public)
+GET    /api/auth/info                   → { "method": "basic", "providers": [], "oidc": null }  (public)
 GET    /api/auth/user                   → { "name": "admin", "role": "ADMIN", "isAdmin": true }     (authenticated)
 ```
 
@@ -77,13 +77,11 @@ Burgee supports three authentication methods, selected via `BURGEE_AUTH_METHOD`:
 
 Stateless, no external identity provider needed. Users are stored in the database with bcrypt-hashed passwords. A bootstrap admin is created on startup from `BURGEE_ADMIN_USERNAME` / `BURGEE_ADMIN_PASSWORD`.
 
-### OAuth2 / OIDC
+### JWT / OIDC (stateless)
 
-Session-based. Configure your OIDC provider via standard Spring Security properties (see `application.yml` comments). Users are auto-provisioned on first login with the `NEW` role. Set `BURGEE_ADMIN_SUBJECT` to the IDP subject of the user that should be bootstrapped as admin.
+Stateless bearer-token validation that works with **any** OIDC provider (Keycloak, Auth0, Okta, Entra ID, …). The SPA performs the authorization-code (PKCE) login client-side via [`oidc-client-ts`](https://github.com/authts/oidc-client-ts) and sends the access token as a bearer; the backend validates it against the issuer's published keys. Set `BURGEE_JWT_ISSUER_URI`, `BURGEE_JWT_CLIENT_ID`, and (optionally) `BURGEE_JWT_SCOPE`. Users are auto-provisioned on first login. Set `BURGEE_ADMIN_SUBJECT` to the token `sub` of the initial admin.
 
-### Firebase Auth
-
-Stateless JWT validation. The backend validates Firebase ID tokens; the frontend uses the Firebase JS SDK. Set `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`, and `FIREBASE_AUTH_DOMAIN`. Users are auto-provisioned on first login. Set `BURGEE_ADMIN_SUBJECT` to the Firebase UID of the initial admin.
+> The provider must issue **JWT access tokens** for the configured audience so the resource server can validate them against the issuer (e.g. Keycloak does this by default; Auth0 requires an API/audience).
 
 ### Roles
 
@@ -95,24 +93,24 @@ Stateless JWT validation. The backend validates Firebase ID tokens; the frontend
 
 ## Configuration
 
-| Variable                | Default                                  | Description                                     |
-| ----------------------- | ---------------------------------------- | ----------------------------------------------- |
+| Variable                | Default                                   | Description                                     |
+| ----------------------- |-------------------------------------------| ----------------------------------------------- |
 | `DB_URL`                | `jdbc:postgresql://localhost:5432/burgee` | JDBC URL                                        |
-| `DB_USERNAME`           | `burgee`                                 | Database user                                   |
-| `DB_PASSWORD`           | `burgee`                                 | Database password                               |
-| `SERVER_PORT`           | `8080`                                   | Backend HTTP port                               |
-| `BURGEE_AUTH_METHOD`    | `basic`                                  | Auth method: `basic`, `oauth2`, or `firebase`   |
-| `BURGEE_ADMIN_USERNAME` | `admin`                                  | Bootstrap admin username (basic auth)            |
-| `BURGEE_ADMIN_PASSWORD` | `admin`                                  | Bootstrap admin password (basic auth)            |
-| `BURGEE_ADMIN_SUBJECT`  | *(empty)*                                | IDP subject to bootstrap as admin (oauth2/firebase) |
-| `FIREBASE_PROJECT_ID`   | *(empty)*                                | Firebase project ID (firebase auth)              |
-| `FIREBASE_API_KEY`      | *(empty)*                                | Firebase web API key (firebase auth)             |
-| `FIREBASE_AUTH_DOMAIN`  | *(empty)*                                | Firebase auth domain (firebase auth)             |
-| `BURGEE_PORT`           | `8080`                                   | Host port published by `docker compose`          |
+| `DB_USERNAME`           | `burgee`                                  | Database user                                   |
+| `DB_PASSWORD`           | `burgee`                                  | Database password                               |
+| `SERVER_PORT`           | `8080`                                    | Backend HTTP port                               |
+| `BURGEE_AUTH_METHOD`    | `basic`                                   | Auth method: `basic` or `jwt`                   |
+| `BURGEE_ADMIN_USERNAME` | `admin`                                   | Bootstrap admin username (basic auth)            |
+| `BURGEE_ADMIN_PASSWORD` | `admin`                                   | Bootstrap admin password (basic auth)            |
+| `BURGEE_ADMIN_SUBJECT`  | *(empty)*                                 | IDP subject to bootstrap as admin (jwt)         |
+| `BURGEE_JWT_ISSUER_URI` | *(empty)*                                 | OIDC issuer URI (jwt auth)                       |
+| `BURGEE_JWT_CLIENT_ID`  | *(empty)*                                 | Public SPA client id (jwt auth)                  |
+| `BURGEE_JWT_SCOPE`      | `openid profile email`                    | Scopes requested by the SPA (jwt auth)           |
+| `BURGEE_PORT`           | `8080`                                    | Host port published by `docker compose`          |
 
 ## Statelessness
 
-In `basic` and `firebase` modes the backend keeps no session state — authentication is validated per request. In `oauth2` mode the backend uses server-side sessions. In all modes every replica reads/writes the same Postgres, so you can run as many backend containers as you like behind a load balancer.
+In both `basic` and `jwt` modes the backend keeps no session state — authentication is validated per request. Every replica reads/writes the same Postgres, so you can run as many backend containers as you like behind a load balancer.
 
 ## Backend architecture
 

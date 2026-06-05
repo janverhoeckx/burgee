@@ -15,8 +15,6 @@ export class AppComponent {
 
   logout(): void {
     this.auth.clear();
-    if (this.auth.method() !== 'oauth2') {
-      void this.router.navigate(['/login']);
-    }
+    void this.router.navigate(['/login']);
   }
 }

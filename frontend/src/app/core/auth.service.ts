@@ -1,40 +1,28 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, catchError, firstValueFrom, map, of, switchMap, tap } from 'rxjs';
-import { initializeApp } from 'firebase/app';
-import {
-  Auth,
-  GoogleAuthProvider,
-  getAuth,
-  onIdTokenChanged,
-  signInWithPopup,
-  signOut,
-} from 'firebase/auth';
+import { Observable, catchError, from, map, of, switchMap, tap } from 'rxjs';
+import { User as OidcUser, UserManager, WebStorageStateStore } from 'oidc-client-ts';
 import { apiBaseUrl } from './api.config';
 
 const STORAGE_KEY = 'burgee.auth';
+
+type AuthMethod = 'basic' | 'jwt';
 
 interface StoredCredentials {
   username: string;
   basic: string;
 }
 
-export interface OAuthProvider {
-  id: string;
-  name: string;
-  loginUrl: string;
-}
-
-interface FirebaseConfig {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
+interface OidcConfig {
+  issuerUri: string;
+  clientId: string;
+  scope: string;
+  resourceUri?: string | null;
 }
 
 interface AuthInfo {
-  method: 'basic' | 'oauth2' | 'firebase';
-  providers: OAuthProvider[];
-  firebase?: FirebaseConfig;
+  method: AuthMethod;
+  oidc?: OidcConfig;
 }
 
 interface UserInfo {
@@ -47,28 +35,23 @@ interface UserInfo {
 export class AuthService {
   private readonly http = inject(HttpClient);
 
-  private readonly _method = signal<'basic' | 'oauth2' | 'firebase'>('basic');
-  private readonly _providers = signal<OAuthProvider[]>([]);
+  private readonly _method = signal<AuthMethod>('basic');
   private readonly _basicState = signal<StoredCredentials | null>(this.readBasic());
-  private readonly _oauthUser = signal<UserInfo | null>(null);
-  private readonly _firebaseToken = signal<string | null>(null);
-  private readonly _firebaseUser = signal<UserInfo | null>(null);
+  private readonly _jwtToken = signal<string | null>(null);
+  private readonly _jwtUser = signal<UserInfo | null>(null);
   private readonly _role = signal<string | null>(null);
 
-  private firebaseAuth: Auth | null = null;
+  private userManager: UserManager | null = null;
 
   readonly method = this._method.asReadonly();
-  readonly providers = this._providers.asReadonly();
-  readonly firebaseToken = this._firebaseToken.asReadonly();
+  readonly jwtToken = this._jwtToken.asReadonly();
   readonly role = this._role.asReadonly();
   readonly isAdmin = computed(() => this._role() === 'ADMIN');
 
   readonly username = computed(() => {
     switch (this._method()) {
-      case 'firebase':
-        return this._firebaseUser()?.name ?? null;
-      case 'oauth2':
-        return this._oauthUser()?.name ?? null;
+      case 'jwt':
+        return this._jwtUser()?.name ?? null;
       default:
         return this._basicState()?.username ?? null;
     }
@@ -80,10 +63,8 @@ export class AuthService {
 
   readonly isAuthenticated = computed(() => {
     switch (this._method()) {
-      case 'firebase':
-        return this._firebaseToken() !== null;
-      case 'oauth2':
-        return this._oauthUser() !== null;
+      case 'jwt':
+        return this._jwtToken() !== null;
       default:
         return this._basicState() !== null;
     }
@@ -93,13 +74,9 @@ export class AuthService {
     return this.http.get<AuthInfo>(`${apiBaseUrl()}/api/auth/info`).pipe(
       switchMap((info) => {
         this._method.set(info.method);
-        this._providers.set(info.providers ?? []);
-        if (info.method === 'oauth2') {
-          return this.fetchBackendUser();
-        }
-        if (info.method === 'firebase' && info.firebase) {
-          return this.initFirebase(info.firebase).pipe(
-            switchMap(() => (this._firebaseToken() ? this.fetchBackendUser() : of(undefined as void))),
+        if (info.method === 'jwt' && info.oidc) {
+          return this.initOidc(info.oidc).pipe(
+            switchMap(() => (this._jwtToken() ? this.fetchBackendUser() : of(undefined as void))),
           );
         }
         if (this._basicState()) {
@@ -119,71 +96,64 @@ export class AuthService {
     this.fetchBackendUser().subscribe();
   }
 
-  async signInWithGoogle(): Promise<void> {
-    if (!this.firebaseAuth) return;
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(this.firebaseAuth, provider);
-    const token = await result.user.getIdToken();
-    this._firebaseToken.set(token);
-    this._firebaseUser.set({
-      name: result.user.displayName || result.user.email || result.user.uid,
-    });
-    await firstValueFrom(this.fetchBackendUser());
+  async signIn(): Promise<void> {
+    if (!this.userManager) return;
+    await this.userManager.signinRedirect();
   }
 
   clear(): void {
     this._role.set(null);
-    if (this._method() === 'firebase') {
-      if (this.firebaseAuth) {
-        signOut(this.firebaseAuth);
-      }
-      this._firebaseToken.set(null);
-      this._firebaseUser.set(null);
-      return;
-    }
-    if (this._method() === 'oauth2') {
-      window.location.href = `${apiBaseUrl()}/api/auth/logout`;
+    if (this._method() === 'jwt') {
+      this._jwtToken.set(null);
+      this._jwtUser.set(null);
+      void this.userManager?.removeUser();
       return;
     }
     sessionStorage.removeItem(STORAGE_KEY);
     this._basicState.set(null);
   }
 
-  private initFirebase(config: FirebaseConfig): Observable<void> {
-    const app = initializeApp(config);
-    this.firebaseAuth = getAuth(app);
+  private initOidc(config: OidcConfig): Observable<void> {
+    const redirectUri = `${window.location.origin}/login`;
+    this.userManager = new UserManager({
+      authority: config.issuerUri,
+      client_id: config.clientId,
+      redirect_uri: redirectUri,
+      post_logout_redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: config.scope,
 
-    return new Observable<void>((subscriber) => {
-      let first = true;
-      onIdTokenChanged(this.firebaseAuth!, (user) => {
-        const complete = () => {
-          if (first) {
-            first = false;
-            subscriber.next();
-            subscriber.complete();
-          }
-        };
-        if (user) {
-          user.getIdToken().then(
-            (token) => {
-              this._firebaseToken.set(token);
-              this._firebaseUser.set({
-                name: user.displayName || user.email || user.uid,
-              });
-              complete();
-            },
-            () => {
-              this._firebaseToken.set(null);
-              this._firebaseUser.set(null);
-              complete();
-            },
-          );
-        } else {
-          this._firebaseToken.set(null);
-          this._firebaseUser.set(null);
-          complete();
-        }
-      });
+      ...(config.resourceUri ? { resource: config.resourceUri } : {}),
+      userStore: new WebStorageStateStore({ store: window.localStorage }),
+    });
+
+    const isRedirectCallback =
+      window.location.search.includes('code=') && window.location.search.includes('state=');
+
+    const resolveUser = isRedirectCallback
+      ? this.userManager.signinRedirectCallback().then((user) => {
+          window.history.replaceState({}, document.title, redirectUri);
+          return user;
+        })
+      : this.userManager.getUser();
+
+    return from(resolveUser).pipe(
+      tap((user) => this.applyOidcUser(user)),
+      map(() => undefined as void),
+      catchError(() => of(undefined as void)),
+    );
+  }
+
+  private applyOidcUser(user: OidcUser | null): void {
+    if (!user || user.expired) {
+      this._jwtToken.set(null);
+      this._jwtUser.set(null);
+      return;
+    }
+    this._jwtToken.set(user.access_token ?? null);
+    const profile = user.profile;
+    this._jwtUser.set({
+      name: profile.name || profile.email || profile.sub,
     });
   }
 
@@ -193,9 +163,6 @@ export class AuthService {
       .pipe(
         tap((user) => {
           this._role.set(user.role ?? null);
-          if (this._method() === 'oauth2') {
-            this._oauthUser.set(user);
-          }
         }),
         map(() => undefined as void),
         catchError(() => of(undefined as void)),
