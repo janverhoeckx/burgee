@@ -120,7 +120,7 @@ class SecurityConfig(
         converter.setJwtGrantedAuthoritiesConverter { jwt ->
             val user = provisionUser.resolveOrProvision(
                 ResolveOrProvisionUserUseCase.Command(
-                    subject = jwt.subject,
+                    subject = requireNotNull(jwt.subject) { "JWT is missing the required 'sub' claim" },
                     provider = IdentityProvider.JWT,
                     email = jwt.getClaimAsString("email"),
                     displayName = jwt.getClaimAsString("name"),

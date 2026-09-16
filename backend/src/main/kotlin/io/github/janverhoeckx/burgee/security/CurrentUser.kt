@@ -7,7 +7,10 @@ import org.springframework.security.oauth2.jwt.Jwt
 fun Authentication?.resolveUsername(fallback: String = "unknown"): String {
     if (this == null || !isAuthenticated) return fallback
     return when (val principal = principal) {
-        is Jwt -> principal.getClaimAsString("name") ?: principal.getClaimAsString("email") ?: principal.subject
+        is Jwt -> principal.getClaimAsString("name")
+            ?: principal.getClaimAsString("email")
+            ?: principal.subject
+            ?: fallback
         is UserDetails -> principal.username
         else -> name ?: fallback
     }
