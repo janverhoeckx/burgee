@@ -6,6 +6,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.data.jdbc.core.dialect.JdbcDialect
 import org.springframework.data.jdbc.core.dialect.JdbcPostgresDialect
 import javax.sql.DataSource
@@ -21,7 +22,13 @@ class StorageConfig {
      */
     @Bean
     @ConditionalOnProperty(name = ["burgee.storage"], havingValue = "memory")
-    fun inMemoryDataSource(): DataSource {
+    fun inMemoryDataSource(environment: ConfigurableEnvironment): DataSource {
+        explicitDatabaseUrlSetting(environment)?.let { setting ->
+            throw IllegalStateException(
+                "BURGEE_STORAGE=memory cannot be combined with $setting: remove $setting to run in memory, " +
+                    "or set BURGEE_STORAGE=postgres to use that database",
+            )
+        }
         log.warn("Storage mode is in-memory: all flags, users and audit entries are lost on restart")
         return HikariDataSource().apply {
             jdbcUrl = IN_MEMORY_URL
@@ -38,7 +45,22 @@ class StorageConfig {
     @ConditionalOnProperty(name = ["burgee.storage"], havingValue = "memory")
     fun inMemoryJdbcDialect(): JdbcDialect = JdbcPostgresDialect.INSTANCE
 
+    /**
+     * Names the setting that points Burgee at a real database, or null when only the built-in default
+     * (`spring.datasource.url: ${DB_URL:...}` in application.yml) is present.
+     */
+    private fun explicitDatabaseUrlSetting(environment: ConfigurableEnvironment): String? {
+        if (environment.containsProperty("DB_URL")) return "DB_URL"
+        val rawUrl = environment.propertySources
+            .firstOrNull { it.containsProperty(DATASOURCE_URL) }
+            ?.getProperty(DATASOURCE_URL)
+            ?.toString()
+        return if (rawUrl != null && !rawUrl.startsWith("\${DB_URL:")) DATASOURCE_URL else null
+    }
+
     companion object {
+        private const val DATASOURCE_URL = "spring.datasource.url"
+
         private val log = LoggerFactory.getLogger(StorageConfig::class.java)
 
         // KEY is an H2 keyword but a column name here, and H2 lacks Postgres' TIMESTAMPTZ alias, so the
