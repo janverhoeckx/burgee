@@ -8,6 +8,9 @@ const STORAGE_KEY = 'burgee.auth';
 
 type AuthMethod = 'basic' | 'jwt';
 
+/** Where the backend keeps flags, users and audit entries; `memory` loses everything on restart. */
+export type StorageMode = 'postgres' | 'memory';
+
 interface StoredCredentials {
   username: string;
   basic: string;
@@ -23,6 +26,7 @@ interface OidcConfig {
 interface AuthInfo {
   method: AuthMethod;
   oidc?: OidcConfig;
+  storage?: StorageMode;
 }
 
 interface UserInfo {
@@ -36,6 +40,7 @@ export class AuthService {
   private readonly http = inject(HttpClient);
 
   private readonly _method = signal<AuthMethod>('basic');
+  private readonly _storage = signal<StorageMode>('postgres');
   private readonly _basicState = signal<StoredCredentials | null>(this.readBasic());
   private readonly _jwtToken = signal<string | null>(null);
   private readonly _jwtUser = signal<UserInfo | null>(null);
@@ -44,6 +49,7 @@ export class AuthService {
   private userManager: UserManager | null = null;
 
   readonly method = this._method.asReadonly();
+  readonly storage = this._storage.asReadonly();
   readonly jwtToken = this._jwtToken.asReadonly();
   readonly role = this._role.asReadonly();
   readonly isAdmin = computed(() => this._role() === 'ADMIN');
@@ -74,6 +80,7 @@ export class AuthService {
     return this.http.get<AuthInfo>(`${apiBaseUrl()}/api/auth/info`).pipe(
       switchMap((info) => {
         this._method.set(info.method);
+        this._storage.set(info.storage ?? 'postgres');
         if (info.method === 'jwt' && info.oidc) {
           return this.initOidc(info.oidc).pipe(
             switchMap(() => (this._jwtToken() ? this.fetchBackendUser() : of(undefined as void))),
