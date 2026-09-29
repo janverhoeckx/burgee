@@ -13,14 +13,28 @@ A simple, self-hostable, open-source feature flag service.
 
 ## Quickstart
 
+Try Burgee without a database, using the in-memory storage mode:
+
 ```bash
-docker compose up --build
+docker run --rm -p 8080:8080 -e BURGEE_STORAGE=memory ghcr.io/janverhoeckx/burgee:latest
 ```
 
 Then open:
 
 - **Dashboard**: http://localhost:8080 (default login: `admin` / `admin`)
 - **Public flags API**: http://localhost:8080/api/v1/flags
+
+> **In-memory mode is for evaluation and local development only.** All flags, users and audit entries are lost when the container stops, and the dashboard shows a banner saying so.
+
+## Running for real
+
+For a durable setup, run Burgee against Postgres (the default storage mode):
+
+```bash
+docker compose up --build
+```
+
+This starts Postgres and Burgee on http://localhost:8080 with the same default login.
 
 > **Change the default admin credentials** before exposing Burgee anywhere. Set `BURGEE_ADMIN_USERNAME` and `BURGEE_ADMIN_PASSWORD` in your environment or a `.env` file. For JWT, set `BURGEE_AUTH_METHOD` and `BURGEE_ADMIN_SUBJECT` instead.
 
@@ -57,7 +71,7 @@ DELETE /api/admin/users/{id}
 ### Auth
 
 ```
-GET    /api/auth/info                   → { "method": "basic", "providers": [], "oidc": null }  (public)
+GET    /api/auth/info                   → { "method": "basic", "oidc": null, "storage": "postgres" }  (public)
 GET    /api/auth/user                   → { "name": "admin", "role": "ADMIN", "isAdmin": true }     (authenticated)
 ```
 
@@ -95,7 +109,8 @@ Stateless bearer-token validation that works with **any** OIDC provider (Keycloa
 
 | Variable                | Default                                   | Description                                     |
 | ----------------------- |-------------------------------------------| ----------------------------------------------- |
-| `DB_URL`                | `jdbc:postgresql://localhost:5432/burgee` | JDBC URL                                        |
+| `BURGEE_STORAGE`        | `postgres`                                | Storage mode: `postgres`, or `memory` for evaluation/dev (data is lost on restart) |
+| `DB_URL`                | `jdbc:postgresql://localhost:5432/burgee` | JDBC URL (postgres storage mode)                |
 | `DB_USERNAME`           | `burgee`                                  | Database user                                   |
 | `DB_PASSWORD`           | `burgee`                                  | Database password                               |
 | `SERVER_PORT`           | `8080`                                    | Backend HTTP port                               |
@@ -110,7 +125,7 @@ Stateless bearer-token validation that works with **any** OIDC provider (Keycloa
 
 ## Statelessness
 
-In both `basic` and `jwt` modes the backend keeps no session state — authentication is validated per request. Every replica reads/writes the same Postgres, so you can run as many backend containers as you like behind a load balancer.
+In both `basic` and `jwt` modes the backend keeps no session state — authentication is validated per request. Every replica reads/writes the same Postgres, so you can run as many backend containers as you like behind a load balancer. (This does not hold for the in-memory storage mode, where each process keeps its own data.)
 
 ## Backend architecture
 
