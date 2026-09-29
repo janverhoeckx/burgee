@@ -1,0 +1,6 @@
+# Dev override: publishes Postgres on the host so a locally running backend can reach it.
+# Used by ./dev.sh; not needed for `docker compose up`.
+services:
+  postgres:
+    ports:
+      - "${BURGEE_DB_PORT:-5432}:5432"
