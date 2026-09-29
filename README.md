@@ -133,25 +133,23 @@ Controllers depend only on use case interfaces; the service depends only on the 
 
 ## Local development
 
-### Backend
-
 ```bash
-cd backend
-docker run --rm -d --name burgee-pg \
-  -e POSTGRES_DB=burgee -e POSTGRES_USER=burgee -e POSTGRES_PASSWORD=burgee \
-  -p 5432:5432 postgres:16-alpine
-./mvnw spring-boot:run
+./dev.sh
 ```
 
-### Frontend
+This starts Postgres in Docker (published on `localhost:5432`, override with `BURGEE_DB_PORT`), the backend via `./mvnw spring-boot:run` on http://localhost:8080 and the Angular dev server on http://localhost:4200 (override with `BURGEE_FRONTEND_PORT`). If either process exits, the other is stopped too. Settings from `.env` are picked up, same as with `docker compose`. Ctrl-C stops the backend and frontend; Postgres keeps running (`docker compose stop postgres` to stop it).
+
+The dev server proxies `/api` to the backend (see `frontend/proxy.conf.json`), so open the dashboard on the dev server port.
+
+To run the parts separately:
 
 ```bash
-cd frontend
-npm install
-npm start
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres
+(cd backend && ./mvnw spring-boot:run)
+(cd frontend && npm install && npm start)
 ```
 
-The Angular dev server runs on http://localhost:4200. Point it at a local backend by setting `window.__burgeeConfig.apiBaseUrl` (e.g. via a small script tag during dev). In production the SPA is served by the backend at `/`, so no proxy is needed.
+In production the SPA is served by the backend at `/`, so no proxy is needed.
 
 ## Roadmap
 
