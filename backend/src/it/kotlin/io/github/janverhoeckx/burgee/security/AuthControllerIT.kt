@@ -53,7 +53,7 @@ class AuthControllerIT(
             status { isOk() }
             jsonPath("$.name") { value("admin") }
             jsonPath("$.role") { value("ADMIN") }
-            jsonPath("$.admin") { value(true) }
+            jsonPath("$.isAdmin") { value(true) }
         }
     }
 
@@ -68,7 +68,7 @@ class AuthControllerIT(
             status { isOk() }
             jsonPath("$.name") { value(subject) }
             jsonPath("$.role") { value("USER") }
-            jsonPath("$.admin") { value(false) }
+            jsonPath("$.isAdmin") { value(false) }
         }
     }
 
