@@ -14,9 +14,9 @@ docker compose up --build                  # full production-like image on :8080
 Backend (run from `backend/`):
 
 ```bash
-./mvnw test                                # unit tests (surefire, src/test) — this is all CI runs
+./mvnw test                                # unit tests (surefire, src/test)
 ./mvnw test -Dtest=FeatureFlagServiceTest  # single unit test class (append #method for one test)
-./mvnw verify                              # unit + integration tests (failsafe, *IT, needs Docker for Testcontainers)
+./mvnw verify                              # unit + integration tests (failsafe, *IT, needs Docker for Testcontainers) — what CI runs
 ./mvnw verify -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false -Dit.test=AdminFlagControllerIT
 ./mvnw spring-boot:run                     # needs Postgres on localhost:5432 (see dev.sh)
 ```
@@ -30,7 +30,7 @@ npm test -- --watch=false --include src/app/core/flag.service.spec.ts
 npm run build
 ```
 
-CI (`.github/workflows/master-builder.yml`) runs on pushes to `main` only: backend `./mvnw test`, frontend tests, then a multi-arch image to GHCR. Integration tests are **not** run in CI; run `./mvnw verify` locally when you touch controllers, security or persistence.
+CI: `.github/workflows/pr-build.yml` runs backend `./mvnw verify` (unit + integration tests) and the frontend tests on pull requests to `main`. `.github/workflows/master-builder.yml` runs the same tests on pushes to `main`, then builds and pushes a multi-arch image to GHCR.
 
 ## Backend architecture
 

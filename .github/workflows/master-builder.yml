@@ -22,9 +22,9 @@ jobs:
           java-version: '25'
           cache: maven
 
-      - name: Run backend tests
+      - name: Run backend unit and integration tests
         working-directory: backend
-        run: ./mvnw -B test
+        run: ./mvnw -B verify
 
   frontend-test:
     runs-on: ubuntu-latest
