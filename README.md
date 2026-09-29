@@ -149,19 +149,24 @@ Controllers depend only on use case interfaces; the service depends only on the 
 ## Local development
 
 ```bash
-./dev.sh
+./dev.sh             # in-memory storage mode, no Docker needed
+./dev.sh --postgres  # Postgres in Docker, data survives restarts
 ```
 
-This starts Postgres in Docker (published on `localhost:5432`, override with `BURGEE_DB_PORT`), the backend via `./mvnw spring-boot:run` on http://localhost:8080 and the Angular dev server on http://localhost:4200 (override with `BURGEE_FRONTEND_PORT`). If either process exits, the other is stopped too. Settings from `.env` are picked up, same as with `docker compose`. Ctrl-C stops the backend and frontend; Postgres keeps running (`docker compose stop postgres` to stop it).
+`./dev.sh` starts the backend via `./mvnw spring-boot:run` on http://localhost:8080 and the Angular dev server on http://localhost:4200 (override with `BURGEE_FRONTEND_PORT`). If either process exits, the other is stopped too. Settings from `.env` are picked up, same as with `docker compose`. Ctrl-C stops the backend and frontend.
+
+By default the backend runs in the in-memory storage mode, so no Docker or Postgres is needed, and all data is lost when it stops. With `--postgres` it starts Postgres in Docker first (published on `localhost:5432`, override with `BURGEE_DB_PORT`). Use that when you work on migrations or persistence. Postgres keeps running after Ctrl-C (`docker compose stop postgres` to stop it).
 
 The dev server proxies `/api` to the backend (see `frontend/proxy.conf.json`), so open the dashboard on the dev server port.
 
 To run the parts separately:
 
 ```bash
+(cd backend && BURGEE_STORAGE=memory ./mvnw spring-boot:run)   # or start Postgres first, see below
+(cd frontend && npm install && npm start)
+
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres
 (cd backend && ./mvnw spring-boot:run)
-(cd frontend && npm install && npm start)
 ```
 
 In production the SPA is served by the backend at `/`, so no proxy is needed.

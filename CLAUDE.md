@@ -7,7 +7,8 @@ Burgee is a self-hostable feature flag service: a Spring Boot 4 / Kotlin backend
 ## Commands
 
 ```bash
-./dev.sh                                   # Postgres (docker) + backend :8080 + ng serve :4200 (proxies /api), reads .env
+./dev.sh                                   # backend :8080 in in-memory storage mode + ng serve :4200 (proxies /api), reads .env
+./dev.sh --postgres                        # same, but with Postgres (docker) as storage
 docker compose up --build                  # full production-like image on :8080 (admin/admin)
 ```
 
@@ -18,7 +19,7 @@ Backend (run from `backend/`):
 ./mvnw test -Dtest=FeatureFlagServiceTest  # single unit test class (append #method for one test)
 ./mvnw verify                              # unit + integration tests (failsafe, *IT, needs Docker for Testcontainers) — what CI runs
 ./mvnw verify -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false -Dit.test=AdminFlagControllerIT
-./mvnw spring-boot:run                     # needs Postgres on localhost:5432 (see dev.sh)
+./mvnw spring-boot:run                     # needs Postgres on localhost:5432 (see dev.sh), or BURGEE_STORAGE=memory
 ```
 
 Frontend (run from `frontend/`):
@@ -49,14 +50,14 @@ Cross-cutting packages:
 - `web/WebConfig`: SPA fallback that serves `static/index.html` for any unknown path that is not under `api/` or `actuator/`.
 - The bootstrap admin comes from `user/adapter/inbound/bootstrap/BootstrapAdminRunner` (`BURGEE_ADMIN_USERNAME`/`PASSWORD`, or `BURGEE_ADMIN_SUBJECT` in jwt mode).
 
-Schema changes go in a new Flyway migration `backend/src/main/resources/db/migration/V<n>__*.sql`. Never edit an existing one.
+Schema changes go in a new Flyway migration `backend/src/main/resources/db/migration/V<n>__*.sql`. Never edit an existing one. Migrations must also run on H2 in PostgreSQL mode, which backs the in-memory storage mode (`storage/StorageConfig`, ADR 0001), so avoid Postgres-only features; `InMemoryStorageIT` catches violations.
 
 Configuration lives in `application.yml`: env vars map to `burgee.*` properties, and the full table is in README.md.
 
 ## Backend testing conventions
 
 - Unit tests use **MockK** + AssertJ, with a fixed `java.time.Clock` injected into services.
-- Integration tests are in `backend/src/it/kotlin` (added as a test source by `build-helper-maven-plugin` and run by failsafe). They extend `AbstractIT`, which starts one shared `postgres:16` Testcontainer, activates the `integration-test` profile and sets `@TestConstructor(autowireMode = ALL)`. Inject beans as constructor `private val`s, not `@Autowired lateinit var`.
+- Integration tests are in `backend/src/it/kotlin` (added as a test source by `build-helper-maven-plugin` and run by failsafe). They extend `AbstractIT`, which starts one shared `postgres:16` Testcontainer, activates the `integration-test` profile and sets `@TestConstructor(autowireMode = ALL)`. ITs for the in-memory storage mode extend `AbstractInMemoryIT` instead (no container). Inject beans as constructor `private val`s, not `@Autowired lateinit var`.
 - Spring Boot 4 specifics: Jackson 3 (`tools.jackson.databind.ObjectMapper`), and `AutoConfigureMockMvc` from `org.springframework.boot.webmvc.test.autoconfigure`.
 - ITs authenticate with `httpBasic("admin", "admin")`. The DB is never reset between tests, so generate unique flag keys (`"x-${System.nanoTime()}"`). Keys must match `^[a-z0-9][a-z0-9._-]*$`.
 - The `/add-or-modify-integration-test` project skill covers the IT recipe in detail.
