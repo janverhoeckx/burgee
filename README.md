@@ -79,7 +79,7 @@ A flag's Targeting Rule is its list of **Conditions**. An Evaluation is `enabled
   - an `attribute` doesn't match `^[A-Za-z][A-Za-z0-9_.-]*$` or is longer than 64 characters,
   - two Conditions use the same `attribute`,
   - `operator` is not `IN`,
-  - `values` is empty or holds more than 1000 distinct values,
+  - `values` is empty or holds more than 1000 values (counted as submitted, before duplicates are removed),
   - a value is blank or longer than 256 characters.
 
 > **Value lists are not secret.** Anyone who can reach the public evaluate API can find out whether a given value is in a Condition's list by submitting it and watching the result. Only put identifiers in value lists that you don't mind being guessed, never secrets such as tokens or passwords.

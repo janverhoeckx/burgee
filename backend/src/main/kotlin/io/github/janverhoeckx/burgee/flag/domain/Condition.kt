@@ -1,6 +1,13 @@
 package io.github.janverhoeckx.burgee.flag.domain
 
-enum class ConditionOperator { IN }
+enum class ConditionOperator {
+    IN;
+
+    companion object {
+        /** The operator with exactly this (case-sensitive) name, or null. */
+        fun fromName(name: String?): ConditionOperator? = entries.find { it.name == name }
+    }
+}
 
 /**
  * One requirement in a Targeting Rule: an Attribute name, an operator and a list of values.
@@ -16,8 +23,11 @@ data class Condition private constructor(
         ConditionOperator.IN -> context.attributes[attribute] in values
     }
 
-    /** Raw, unvalidated Condition input, e.g. from an admin request. */
-    data class Input(val attribute: String, val operator: String, val values: List<String>)
+    /** Renders the Condition, e.g. `organisationId IN (acme, globex)`. */
+    fun describe(): String = "$attribute $operator (${values.joinToString()})"
+
+    /** Raw, unvalidated Condition input, e.g. from an admin request. Any field may be missing. */
+    data class Input(val attribute: String?, val operator: String?, val values: List<String?>?)
 
     companion object {
         const val MAX_VALUES = 1000
@@ -30,15 +40,26 @@ data class Condition private constructor(
         }
 
         /**
-         * Violations of a Condition's own invariants, keyed by field (`attribute`, `values`, `values[i]`).
-         * Value indices refer to [values] as given, before duplicates are removed.
+         * Validates raw input. Violations are keyed by field (`attribute`, `operator`, `values`, `values[i]`);
+         * value indices refer to the values as submitted, before duplicates are removed.
          */
-        fun violations(attribute: String, values: List<String>): Map<String, String> = buildMap {
-            if (!Attribute.isValidName(attribute)) put("attribute", Attribute.NAME_RULE)
-            if (values.isEmpty()) put("values", "must contain at least one value")
-            if (values.distinct().size > MAX_VALUES) put("values", "must contain at most $MAX_VALUES values")
-            values.forEachIndexed { index, value ->
-                if (!Attribute.isValidValue(value)) put("values[$index]", Attribute.VALUE_RULE)
+        fun parse(input: Input): Parsed<Condition> {
+            val operator = ConditionOperator.fromName(input.operator)
+            val violations = buildMap {
+                putAll(violations(input.attribute, input.values))
+                if (operator == null) put("operator", "must be one of: ${ConditionOperator.entries.joinToString()}")
+            }
+            if (violations.isNotEmpty()) return Parsed.Invalid(violations)
+            // No violations means the attribute, the operator and every value are present.
+            return Parsed.Valid(of(input.attribute!!, operator!!, input.values.orEmpty().filterNotNull()))
+        }
+
+        private fun violations(attribute: String?, values: List<String?>?): Map<String, String> = buildMap {
+            if (!AttributeRules.isValidName(attribute)) put("attribute", AttributeRules.NAME_RULE)
+            if (values.isNullOrEmpty()) put("values", "must contain at least one value")
+            if (values != null && values.size > MAX_VALUES) put("values", "must contain at most $MAX_VALUES values")
+            values?.forEachIndexed { index, value ->
+                if (!AttributeRules.isValidValue(value)) put("values[$index]", AttributeRules.VALUE_RULE)
             }
         }
     }

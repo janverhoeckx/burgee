@@ -291,6 +291,53 @@ class TargetingRuleIT(
     }
 
     @Test
+    fun `admin create rejects a null value inside values with a field error`() {
+        expectCreateRejected(
+            """[{"attribute":"organisationId","operator":"IN","values":["acme",null]}]""",
+            "conditions[0].values[1]",
+            "must not be blank and be at most 256 characters",
+        )
+    }
+
+    @Test
+    fun `admin create rejects null Condition fields with field errors`() {
+        createFlag(uniqueKey("null-fields"), conditions = """[{"attribute":null,"operator":null,"values":null}]""")
+            .andExpect {
+                status { isBadRequest() }
+                jsonPath("$.message") { value("Validation failed") }
+                jsonPath("$.fieldErrors['conditions[0].attribute']") {
+                    value("must match ^[A-Za-z][A-Za-z0-9_.-]*$ and be at most 64 characters")
+                }
+                jsonPath("$.fieldErrors['conditions[0].operator']") { value("must be one of: IN") }
+                jsonPath("$.fieldErrors['conditions[0].values']") { value("must contain at least one value") }
+            }
+    }
+
+    @Test
+    fun `admin update rejects a null value inside values with a field error`() {
+        val id = createAndExtractId(uniqueKey("update-null"))
+
+        updateFlag(id, """{"name":"renamed","enabled":true,"conditions":[{"attribute":"country","operator":"IN","values":[null]}]}""")
+            .andExpect {
+                status { isBadRequest() }
+                jsonPath("$.fieldErrors['conditions[0].values[0]']") {
+                    value("must not be blank and be at most 256 characters")
+                }
+            }
+    }
+
+    @Test
+    fun `admin create counts submitted values, not distinct ones, against the 1000 limit`() {
+        val values = (1..1000).map { "org-$it" }
+
+        expectCreateRejected(
+            "[${condition(values = values + "org-1")}]",
+            "conditions[0].values",
+            "must contain at most 1000 values",
+        )
+    }
+
+    @Test
     fun `admin update rejects an invalid Targeting Rule and keeps the stored one`() {
         val key = uniqueKey("update-invalid")
         val id = createAndExtractId(key)

@@ -4,6 +4,7 @@ import io.github.janverhoeckx.burgee.flag.application.port.inbound.CreateFlagUse
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.DeleteFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.EvaluateFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.GetFlagByIdUseCase
+import io.github.janverhoeckx.burgee.flag.application.port.inbound.InvalidTargetingRule
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.ToggleFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.UpdateFlagUseCase
 import io.github.janverhoeckx.burgee.audit.application.port.inbound.RecordAuditEntryUseCase
@@ -14,6 +15,7 @@ import io.github.janverhoeckx.burgee.flag.domain.ConditionOperator
 import io.github.janverhoeckx.burgee.flag.domain.Evaluation
 import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
 import io.github.janverhoeckx.burgee.flag.domain.FeatureFlag
+import io.github.janverhoeckx.burgee.flag.domain.TargetingRule
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -230,7 +232,7 @@ class FeatureFlagServiceTest {
     fun `evaluate returns NotFound for an unknown key`() {
         every { repository.findByKey("missing") } returns null
 
-        assertThat(service.evaluate("missing", EvaluationContext.EMPTY))
+        assertThat(service.evaluate("missing", EvaluationContext(emptyMap())))
             .isEqualTo(EvaluateFlagUseCase.Result.NotFound)
     }
 
@@ -248,7 +250,7 @@ class FeatureFlagServiceTest {
         val off = existing.copy(key = "b-off", enabled = false)
         every { repository.findAll() } returns listOf(on, off)
 
-        assertThat(service.evaluateAll(EvaluationContext.EMPTY))
+        assertThat(service.evaluateAll(EvaluationContext(emptyMap())))
             .containsExactly(Evaluation("a-on", true), Evaluation("b-off", false))
     }
 
@@ -269,8 +271,8 @@ class FeatureFlagServiceTest {
             ),
         )
 
-        assertThat((result as CreateFlagUseCase.Result.Created).flag.conditions).containsExactly(orgIn)
-        verify { repository.save(match { it.conditions == listOf(orgIn) }) }
+        assertThat((result as CreateFlagUseCase.Result.Created).flag.targetingRule).isEqualTo(TargetingRule(listOf(orgIn)))
+        verify { repository.save(match { it.targetingRule == TargetingRule(listOf(orgIn)) }) }
     }
 
     @Test
@@ -288,7 +290,7 @@ class FeatureFlagServiceTest {
         )
 
         assertThat(result).isEqualTo(
-            CreateFlagUseCase.Result.InvalidTargetingRule(
+            InvalidTargetingRule(
                 mapOf("conditions[0].values" to "must contain at least one value"),
             ),
         )
@@ -298,7 +300,7 @@ class FeatureFlagServiceTest {
 
     @Test
     fun `update replaces the whole Targeting Rule`() {
-        every { repository.findById(id) } returns existing.copy(conditions = listOf(orgIn))
+        every { repository.findById(id) } returns existing.copy(targetingRule = TargetingRule(listOf(orgIn)))
         every { repository.save(any()) } answers { firstArg() }
 
         val result = service.update(
@@ -311,18 +313,18 @@ class FeatureFlagServiceTest {
             ),
         )
 
-        assertThat((result as UpdateFlagUseCase.Result.Updated).flag.conditions)
+        assertThat((result as UpdateFlagUseCase.Result.Updated).flag.targetingRule.conditions)
             .containsExactly(Condition.of("country", ConditionOperator.IN, listOf("nl")))
     }
 
     @Test
     fun `update without Conditions clears the Targeting Rule`() {
-        every { repository.findById(id) } returns existing.copy(conditions = listOf(orgIn))
+        every { repository.findById(id) } returns existing.copy(targetingRule = TargetingRule(listOf(orgIn)))
         every { repository.save(any()) } answers { firstArg() }
 
         val result = service.update(UpdateFlagUseCase.Command(id, existing.name, existing.description, true))
 
-        assertThat((result as UpdateFlagUseCase.Result.Updated).flag.conditions).isEmpty()
+        assertThat((result as UpdateFlagUseCase.Result.Updated).flag.targetingRule.conditions).isEmpty()
     }
 
     @Test
@@ -343,7 +345,7 @@ class FeatureFlagServiceTest {
         )
 
         assertThat(result).isEqualTo(
-            UpdateFlagUseCase.Result.InvalidTargetingRule(
+            InvalidTargetingRule(
                 mapOf("conditions[1].attribute" to "duplicate attribute 'organisationId'"),
             ),
         )
@@ -360,7 +362,7 @@ class FeatureFlagServiceTest {
     @Test
     fun `update records the Conditions before and after when the Targeting Rule changes`() {
         every { repository.findById(id) } returns existing.copy(
-            conditions = listOf(Condition.of("organisationId", ConditionOperator.IN, listOf("acme"))),
+            targetingRule = TargetingRule(listOf(Condition.of("organisationId", ConditionOperator.IN, listOf("acme")))),
         )
         every { repository.save(any()) } answers { firstArg() }
 
@@ -380,7 +382,7 @@ class FeatureFlagServiceTest {
 
     @Test
     fun `update does not mention the Conditions when the Targeting Rule is unchanged`() {
-        every { repository.findById(id) } returns existing.copy(conditions = listOf(orgIn))
+        every { repository.findById(id) } returns existing.copy(targetingRule = TargetingRule(listOf(orgIn)))
         every { repository.save(any()) } answers { firstArg() }
 
         service.update(
@@ -398,7 +400,7 @@ class FeatureFlagServiceTest {
 
     @Test
     fun `update that clears the Targeting Rule records it as empty`() {
-        every { repository.findById(id) } returns existing.copy(conditions = listOf(orgIn))
+        every { repository.findById(id) } returns existing.copy(targetingRule = TargetingRule(listOf(orgIn)))
         every { repository.save(any()) } answers { firstArg() }
 
         service.update(UpdateFlagUseCase.Command(id, existing.name, existing.description, existing.enabled))
@@ -439,7 +441,7 @@ class FeatureFlagServiceTest {
         assertThat(recordedDetail()).isEqualTo("Created flag (enabled=false)")
     }
 
-    private val targeted = existing.copy(key = "targeted", enabled = true, conditions = listOf(orgIn))
+    private val targeted = existing.copy(key = "targeted", enabled = true, targetingRule = TargetingRule(listOf(orgIn)))
 
     @Test
     fun `evaluate applies the Targeting Rule to the Evaluation Context`() {
@@ -449,7 +451,7 @@ class FeatureFlagServiceTest {
             .isEqualTo(EvaluateFlagUseCase.Result.Evaluated(Evaluation("targeted", true)))
         assertThat(service.evaluate("targeted", EvaluationContext(mapOf("organisationId" to "initech"))))
             .isEqualTo(EvaluateFlagUseCase.Result.Evaluated(Evaluation("targeted", false)))
-        assertThat(service.evaluate("targeted", EvaluationContext.EMPTY))
+        assertThat(service.evaluate("targeted", EvaluationContext(emptyMap())))
             .isEqualTo(EvaluateFlagUseCase.Result.Evaluated(Evaluation("targeted", false)))
     }
 

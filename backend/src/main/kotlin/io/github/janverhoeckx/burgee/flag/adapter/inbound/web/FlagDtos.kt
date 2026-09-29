@@ -23,12 +23,13 @@ data class FeatureFlagResponse(
 
 /**
  * A Condition on the admin API: `{ "attribute": "organisationId", "operator": "IN", "values": ["acme"] }`.
- * Validated by the domain (see `TargetingRule`); violations come back as 400 field errors.
+ * Fields are nullable so that missing or `null` input reaches the domain (see `TargetingRule.parse`),
+ * whose violations come back as 400 field errors instead of a JSON parse error.
  */
 data class ConditionDto(
-    val attribute: String,
-    val operator: String,
-    val values: List<String>,
+    val attribute: String?,
+    val operator: String?,
+    val values: List<String?>?,
 ) {
     fun toInput() = Condition.Input(attribute = attribute, operator = operator, values = values)
 }
@@ -90,7 +91,7 @@ fun FeatureFlag.toResponse() = FeatureFlagResponse(
     enabled = enabled,
     createdAt = createdAt,
     updatedAt = updatedAt,
-    conditions = conditions.map { it.toDto() },
+    conditions = targetingRule.conditions.map { it.toDto() },
 )
 
 fun Condition.toDto() = ConditionDto(attribute = attribute, operator = operator.name, values = values)

@@ -11,31 +11,23 @@ data class FeatureFlag(
     val enabled: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
-    /** The Targeting Rule: every Condition must match for an enabled flag to evaluate to true. */
-    val conditions: List<Condition> = emptyList(),
+    val targetingRule: TargetingRule = TargetingRule(),
 ) {
-    init {
-        val attributes = conditions.map { it.attribute }
-        require(attributes.size == attributes.toSet().size) {
-            "A Targeting Rule cannot hold two Conditions on the same Attribute: $attributes"
-        }
-    }
-
     fun withDetails(
         name: String,
         description: String?,
         enabled: Boolean,
+        targetingRule: TargetingRule,
         now: Instant,
-        conditions: List<Condition> = this.conditions,
     ): FeatureFlag =
-        copy(name = name, description = description, enabled = enabled, conditions = conditions, updatedAt = now)
+        copy(name = name, description = description, enabled = enabled, targetingRule = targetingRule, updatedAt = now)
 
     fun toggled(now: Instant): FeatureFlag =
         copy(enabled = !enabled, updatedAt = now)
 
-    /** Evaluation: the flag's true/false result for one Evaluation Context. */
-    fun evaluate(context: EvaluationContext): Boolean =
-        enabled && conditions.all { it.matches(context) }
+    /** Evaluation: `enabled AND the Targeting Rule matches` for one Evaluation Context. */
+    fun evaluate(context: EvaluationContext): Evaluation =
+        Evaluation(flagKey = key, result = enabled && targetingRule.matches(context))
 
     companion object {
         fun create(
@@ -45,7 +37,7 @@ data class FeatureFlag(
             enabled: Boolean,
             now: Instant = Instant.now(),
             id: UUID = UUID.randomUUID(),
-            conditions: List<Condition> = emptyList(),
+            targetingRule: TargetingRule = TargetingRule(),
         ): FeatureFlag = FeatureFlag(
             id = id,
             key = key,
@@ -54,7 +46,7 @@ data class FeatureFlag(
             enabled = enabled,
             createdAt = now,
             updatedAt = now,
-            conditions = conditions,
+            targetingRule = targetingRule,
         )
     }
 }
