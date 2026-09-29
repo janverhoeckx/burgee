@@ -1,9 +1,22 @@
 #!/usr/bin/env bash
-# Starts a local dev environment: Postgres (docker), backend (spring-boot:run) and frontend (ng serve).
-# Ctrl-C stops the backend and frontend; Postgres keeps running (stop with `docker compose stop postgres`).
+# Starts a local dev environment: backend (spring-boot:run) and frontend (ng serve).
+#   ./dev.sh             in-memory storage mode: no Docker or Postgres needed, data is lost on restart
+#   ./dev.sh --postgres  Postgres (docker) storage mode; Postgres keeps running after Ctrl-C
+#                        (stop with `docker compose stop postgres`)
+# Ctrl-C stops the backend and frontend.
 set -euo pipefail
 
 cd "$(dirname "$0")"
+
+storage=memory
+case "${1:-}" in
+  "") ;;
+  --postgres) storage=postgres ;;
+  *)
+    echo "Usage: $0 [--postgres]" >&2
+    exit 2
+    ;;
+esac
 
 # Load .env like docker compose does, so the backend sees the same settings.
 if [[ -f .env ]]; then
@@ -12,14 +25,25 @@ if [[ -f .env ]]; then
   done < <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env)
 fi
 
-export DB_URL="jdbc:postgresql://localhost:${BURGEE_DB_PORT:-5432}/burgee"
-export DB_USERNAME=burgee
-export DB_PASSWORD="${DB_PASSWORD:-burgee}"
+export BURGEE_STORAGE="$storage"
 
 trap 'trap - EXIT; kill 0' INT TERM EXIT
 
-echo "Starting Postgres..."
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres
+if [[ "$storage" == postgres ]]; then
+  export DB_URL="jdbc:postgresql://localhost:${BURGEE_DB_PORT:-5432}/burgee"
+  export DB_USERNAME=burgee
+  export DB_PASSWORD="${DB_PASSWORD:-burgee}"
+
+  echo "Starting Postgres..."
+  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres
+else
+  # A DB_URL from .env or the shell would make the backend refuse to start in memory mode.
+  if [[ -n "${DB_URL:-}" ]]; then
+    echo "Ignoring DB_URL in the in-memory storage mode (use --postgres to use a database)."
+    unset DB_URL
+  fi
+  echo "Using the in-memory storage mode: all data is lost when the backend stops (use --postgres to keep it)."
+fi
 
 if [[ ! -d frontend/node_modules ]]; then
   echo "Installing frontend dependencies..."

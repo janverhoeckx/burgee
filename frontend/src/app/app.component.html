@@ -1,3 +1,8 @@
+@if (auth.storage() === 'memory') {
+  <div class="storage-banner" role="alert">
+    In-memory mode: all changes are lost on restart.
+  </div>
+}
 <header class="topbar">
   <a routerLink="/flags" class="brand">
     <img src="assets/burgee-logo.png" alt="Burgee" class="logo" />

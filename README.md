@@ -13,14 +13,28 @@ A simple, self-hostable, open-source feature flag service.
 
 ## Quickstart
 
+Try Burgee without a database, using the in-memory storage mode:
+
 ```bash
-docker compose up --build
+docker run --rm -p 8080:8080 -e BURGEE_STORAGE=memory ghcr.io/janverhoeckx/burgee:latest
 ```
 
 Then open:
 
 - **Dashboard**: http://localhost:8080 (default login: `admin` / `admin`)
 - **Public flags API**: http://localhost:8080/api/v1/flags
+
+> **In-memory mode is for evaluation and local development only.** All flags, users and audit entries are lost when the container stops, and the dashboard shows a banner saying so.
+
+## Running for real
+
+For a durable setup, run Burgee against Postgres (the default storage mode):
+
+```bash
+docker compose up --build
+```
+
+This starts Postgres and Burgee on http://localhost:8080 with the same default login.
 
 > **Change the default admin credentials** before exposing Burgee anywhere. Set `BURGEE_ADMIN_USERNAME` and `BURGEE_ADMIN_PASSWORD` in your environment or a `.env` file. For JWT, set `BURGEE_AUTH_METHOD` and `BURGEE_ADMIN_SUBJECT` instead.
 
@@ -57,7 +71,7 @@ DELETE /api/admin/users/{id}
 ### Auth
 
 ```
-GET    /api/auth/info                   → { "method": "basic", "providers": [], "oidc": null }  (public)
+GET    /api/auth/info                   → { "method": "basic", "oidc": null, "storage": "postgres" }  (public)
 GET    /api/auth/user                   → { "name": "admin", "role": "ADMIN", "isAdmin": true }     (authenticated)
 ```
 
@@ -95,7 +109,8 @@ Stateless bearer-token validation that works with **any** OIDC provider (Keycloa
 
 | Variable                | Default                                   | Description                                     |
 | ----------------------- |-------------------------------------------| ----------------------------------------------- |
-| `DB_URL`                | `jdbc:postgresql://localhost:5432/burgee` | JDBC URL                                        |
+| `BURGEE_STORAGE`        | `postgres`                                | Storage mode: `postgres`, or `memory` for evaluation/dev (data is lost on restart) |
+| `DB_URL`                | `jdbc:postgresql://localhost:5432/burgee` | JDBC URL (postgres storage mode)                |
 | `DB_USERNAME`           | `burgee`                                  | Database user                                   |
 | `DB_PASSWORD`           | `burgee`                                  | Database password                               |
 | `SERVER_PORT`           | `8080`                                    | Backend HTTP port                               |
@@ -110,7 +125,7 @@ Stateless bearer-token validation that works with **any** OIDC provider (Keycloa
 
 ## Statelessness
 
-In both `basic` and `jwt` modes the backend keeps no session state — authentication is validated per request. Every replica reads/writes the same Postgres, so you can run as many backend containers as you like behind a load balancer.
+In both `basic` and `jwt` modes the backend keeps no session state — authentication is validated per request. Every replica reads/writes the same Postgres, so you can run as many backend containers as you like behind a load balancer. (This does not hold for the in-memory storage mode, where each process keeps its own data.)
 
 ## Backend architecture
 
@@ -134,19 +149,24 @@ Controllers depend only on use case interfaces; the service depends only on the 
 ## Local development
 
 ```bash
-./dev.sh
+./dev.sh             # in-memory storage mode, no Docker needed
+./dev.sh --postgres  # Postgres in Docker, data survives restarts
 ```
 
-This starts Postgres in Docker (published on `localhost:5432`, override with `BURGEE_DB_PORT`), the backend via `./mvnw spring-boot:run` on http://localhost:8080 and the Angular dev server on http://localhost:4200 (override with `BURGEE_FRONTEND_PORT`). If either process exits, the other is stopped too. Settings from `.env` are picked up, same as with `docker compose`. Ctrl-C stops the backend and frontend; Postgres keeps running (`docker compose stop postgres` to stop it).
+`./dev.sh` starts the backend via `./mvnw spring-boot:run` on http://localhost:8080 and the Angular dev server on http://localhost:4200 (override with `BURGEE_FRONTEND_PORT`). If either process exits, the other is stopped too. Settings from `.env` are picked up, same as with `docker compose`. Ctrl-C stops the backend and frontend.
+
+By default the backend runs in the in-memory storage mode, so no Docker or Postgres is needed, and all data is lost when it stops. With `--postgres` it starts Postgres in Docker first (published on `localhost:5432`, override with `BURGEE_DB_PORT`). Use that when you work on migrations or persistence. Postgres keeps running after Ctrl-C (`docker compose stop postgres` to stop it).
 
 The dev server proxies `/api` to the backend (see `frontend/proxy.conf.json`), so open the dashboard on the dev server port.
 
 To run the parts separately:
 
 ```bash
+(cd backend && BURGEE_STORAGE=memory ./mvnw spring-boot:run)   # or start Postgres first, see below
+(cd frontend && npm install && npm start)
+
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres
 (cd backend && ./mvnw spring-boot:run)
-(cd frontend && npm install && npm start)
 ```
 
 In production the SPA is served by the backend at `/`, so no proxy is needed.

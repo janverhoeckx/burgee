@@ -103,6 +103,17 @@ describe('AuthService', () => {
 
       expect(completed).toBe(true);
       expect(service.method()).toBe('basic');
+      expect(service.storage()).toBe('postgres');
+      httpMock.verify();
+    });
+
+    it('reads the storage mode from the auth info endpoint', () => {
+      const { service, httpMock } = makeService();
+      service.init().subscribe();
+
+      httpMock.expectOne('/api/auth/info').flush({ method: 'basic', storage: 'memory' });
+
+      expect(service.storage()).toBe('memory');
       httpMock.verify();
     });
 
