@@ -11,6 +11,7 @@ import io.github.janverhoeckx.burgee.flag.application.port.inbound.UpdateFlagUse
 import io.github.janverhoeckx.burgee.audit.application.port.inbound.RecordAuditEntryUseCase
 import io.github.janverhoeckx.burgee.audit.domain.AuditAction
 import io.github.janverhoeckx.burgee.flag.application.port.outbound.FeatureFlagRepositoryPort
+import io.github.janverhoeckx.burgee.flag.domain.Condition
 import io.github.janverhoeckx.burgee.flag.domain.Evaluation
 import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
 import io.github.janverhoeckx.burgee.flag.domain.FeatureFlag
@@ -72,7 +73,7 @@ class FeatureFlagService(
             conditions = conditions,
         )
         val saved = repository.save(flag)
-        recordAudit(AuditAction.CREATE, saved, "Created flag (enabled=${saved.enabled})")
+        recordAudit(AuditAction.CREATE, saved, describeCreation(saved))
         return CreateFlagUseCase.Result.Created(saved)
     }
 
@@ -121,6 +122,11 @@ class FeatureFlagService(
         )
     }
 
+    private fun describeCreation(flag: FeatureFlag): String {
+        val targeting = if (flag.conditions.isEmpty()) "" else ", conditions=${describe(flag.conditions)}"
+        return "Created flag (enabled=${flag.enabled}$targeting)"
+    }
+
     private fun describeChanges(before: FeatureFlag, after: FeatureFlag): String {
         val changes = buildList {
             if (before.name != after.name) add("name: '${before.name}' → '${after.name}'")
@@ -128,9 +134,18 @@ class FeatureFlagService(
                 add("description: ${quote(before.description)} → ${quote(after.description)}")
             }
             if (before.enabled != after.enabled) add("enabled: ${before.enabled} → ${after.enabled}")
+            if (before.conditions != after.conditions) {
+                add("conditions: ${describe(before.conditions)} → ${describe(after.conditions)}")
+            }
         }
         return if (changes.isEmpty()) "No changes" else changes.joinToString("; ")
     }
+
+    /** Renders a Targeting Rule, e.g. `[organisationId IN (acme, globex) AND country IN (nl)]`. */
+    private fun describe(conditions: List<Condition>): String =
+        conditions.joinToString(separator = " AND ", prefix = "[", postfix = "]") {
+            "${it.attribute} ${it.operator} (${it.values.joinToString()})"
+        }
 
     private fun quote(value: String?): String = if (value == null) "∅" else "'$value'"
 

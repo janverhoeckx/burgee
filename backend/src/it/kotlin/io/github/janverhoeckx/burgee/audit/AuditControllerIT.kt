@@ -95,6 +95,39 @@ class AuditControllerIT(
     }
 
     @Test
+    fun `changing a flag's Targeting Rule is recorded in the audit trail`() {
+        val key = uniqueKey("rule")
+        val id = mockMvc.post("/api/admin/flags") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"key":"$key","name":"Flag $key","enabled":true,
+                "conditions":[{"attribute":"organisationId","operator":"IN","values":["acme"]}]}"""
+            with(admin)
+        }.andExpect { status { isCreated() } }
+            .andReturn().response.contentAsString
+            .substringAfter("\"id\":\"").substringBefore("\"")
+
+        mockMvc.put("/api/admin/flags/$id") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"name":"Flag $key","enabled":true,
+                "conditions":[{"attribute":"organisationId","operator":"IN","values":["acme","globex"]}]}"""
+            with(admin)
+        }.andExpect { status { isOk() } }
+
+        mockMvc.get("/api/admin/audit?flagId=$id") {
+            with(admin)
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$[0].action") { value("UPDATE") }
+            jsonPath("$[0].actor") { value("admin") }
+            jsonPath("$[0].detail") {
+                value("conditions: [organisationId IN (acme)] → [organisationId IN (acme, globex)]")
+            }
+            jsonPath("$[1].action") { value("CREATE") }
+            jsonPath("$[1].detail") { value("Created flag (enabled=true, conditions=[organisationId IN (acme)])") }
+        }
+    }
+
+    @Test
     fun `audit endpoint without credentials returns 401`() {
         mockMvc.get("/api/admin/audit") {
             with(anonymous())

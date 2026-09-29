@@ -351,6 +351,94 @@ class FeatureFlagServiceTest {
         verify(exactly = 0) { auditTrail.record(any()) }
     }
 
+    private fun recordedDetail(): String? {
+        val command = slot<RecordAuditEntryUseCase.Command>()
+        verify { auditTrail.record(capture(command)) }
+        return command.captured.detail
+    }
+
+    @Test
+    fun `update records the Conditions before and after when the Targeting Rule changes`() {
+        every { repository.findById(id) } returns existing.copy(
+            conditions = listOf(Condition.of("organisationId", ConditionOperator.IN, listOf("acme"))),
+        )
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.update(
+            UpdateFlagUseCase.Command(
+                id = id,
+                name = existing.name,
+                description = existing.description,
+                enabled = existing.enabled,
+                conditions = listOf(Condition.Input("organisationId", "IN", listOf("acme", "globex"))),
+            ),
+        )
+
+        assertThat(recordedDetail())
+            .isEqualTo("conditions: [organisationId IN (acme)] → [organisationId IN (acme, globex)]")
+    }
+
+    @Test
+    fun `update does not mention the Conditions when the Targeting Rule is unchanged`() {
+        every { repository.findById(id) } returns existing.copy(conditions = listOf(orgIn))
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.update(
+            UpdateFlagUseCase.Command(
+                id = id,
+                name = "renamed",
+                description = existing.description,
+                enabled = existing.enabled,
+                conditions = listOf(Condition.Input("organisationId", "IN", listOf("acme", "globex"))),
+            ),
+        )
+
+        assertThat(recordedDetail()).isEqualTo("name: 'Checkout v2' → 'renamed'")
+    }
+
+    @Test
+    fun `update that clears the Targeting Rule records it as empty`() {
+        every { repository.findById(id) } returns existing.copy(conditions = listOf(orgIn))
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.update(UpdateFlagUseCase.Command(id, existing.name, existing.description, existing.enabled))
+
+        assertThat(recordedDetail()).isEqualTo("conditions: [organisationId IN (acme, globex)] → []")
+    }
+
+    @Test
+    fun `create with Conditions records them in the CREATE audit entry`() {
+        every { repository.existsByKey("targeted") } returns false
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.create(
+            CreateFlagUseCase.Command(
+                key = "targeted",
+                name = "Targeted",
+                description = null,
+                enabled = true,
+                conditions = listOf(
+                    Condition.Input("organisationId", "IN", listOf("acme", "globex")),
+                    Condition.Input("country", "IN", listOf("nl")),
+                ),
+            ),
+        )
+
+        assertThat(recordedDetail()).isEqualTo(
+            "Created flag (enabled=true, conditions=[organisationId IN (acme, globex) AND country IN (nl)])",
+        )
+    }
+
+    @Test
+    fun `create without Conditions keeps the CREATE audit detail short`() {
+        every { repository.existsByKey("everyone") } returns false
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.create(CreateFlagUseCase.Command("everyone", "Everyone", null, false))
+
+        assertThat(recordedDetail()).isEqualTo("Created flag (enabled=false)")
+    }
+
     private val targeted = existing.copy(key = "targeted", enabled = true, conditions = listOf(orgIn))
 
     @Test
