@@ -19,3 +19,13 @@ internal fun apiError(status: HttpStatus, message: String): ResponseEntity<ApiEr
 
 internal fun notFound(message: String): ResponseEntity<ApiError> =
     apiError(HttpStatus.NOT_FOUND, message)
+
+internal fun validationFailed(fieldErrors: Map<String, String?>): ResponseEntity<ApiError> =
+    ResponseEntity.status(HttpStatus.BAD_REQUEST).body(
+        ApiError(
+            status = HttpStatus.BAD_REQUEST.value(),
+            error = HttpStatus.BAD_REQUEST.reasonPhrase,
+            message = "Validation failed",
+            fieldErrors = fieldErrors,
+        ),
+    )

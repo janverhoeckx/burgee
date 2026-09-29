@@ -14,6 +14,7 @@ import io.github.janverhoeckx.burgee.flag.application.port.outbound.FeatureFlagR
 import io.github.janverhoeckx.burgee.flag.domain.Evaluation
 import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
 import io.github.janverhoeckx.burgee.flag.domain.FeatureFlag
+import io.github.janverhoeckx.burgee.flag.domain.TargetingRule
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
@@ -58,12 +59,17 @@ class FeatureFlagService(
         if (repository.existsByKey(command.key)) {
             return CreateFlagUseCase.Result.DuplicateKey(command.key)
         }
+        val conditions = when (val parsed = TargetingRule.parse(command.conditions)) {
+            is TargetingRule.Parsed.Valid -> parsed.conditions
+            is TargetingRule.Parsed.Invalid -> return CreateFlagUseCase.Result.InvalidTargetingRule(parsed.violations)
+        }
         val flag = FeatureFlag.create(
             key = command.key,
             name = command.name,
             description = command.description,
             enabled = command.enabled,
             now = now(),
+            conditions = conditions,
         )
         val saved = repository.save(flag)
         recordAudit(AuditAction.CREATE, saved, "Created flag (enabled=${saved.enabled})")
@@ -73,11 +79,16 @@ class FeatureFlagService(
     override fun update(command: UpdateFlagUseCase.Command): UpdateFlagUseCase.Result {
         val existing = repository.findById(command.id)
             ?: return UpdateFlagUseCase.Result.NotFound
+        val conditions = when (val parsed = TargetingRule.parse(command.conditions)) {
+            is TargetingRule.Parsed.Valid -> parsed.conditions
+            is TargetingRule.Parsed.Invalid -> return UpdateFlagUseCase.Result.InvalidTargetingRule(parsed.violations)
+        }
         val updated = existing.withDetails(
             name = command.name,
             description = command.description,
             enabled = command.enabled,
             now = now(),
+            conditions = conditions,
         )
         val saved = repository.save(updated)
         recordAudit(AuditAction.UPDATE, saved, describeChanges(existing, saved))

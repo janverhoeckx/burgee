@@ -1,5 +1,6 @@
 package io.github.janverhoeckx.burgee.flag.adapter.inbound.web
 
+import io.github.janverhoeckx.burgee.flag.domain.Attribute
 import io.github.janverhoeckx.burgee.flag.domain.Evaluation
 import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
 import tools.jackson.databind.JsonNode
@@ -21,10 +22,6 @@ data class EvaluationResponse(
 fun Evaluation.toResponse() = EvaluationResponse(key = flagKey, enabled = result)
 
 private const val MAX_ATTRIBUTES = 50
-private const val MAX_NAME_LENGTH = 64
-private const val NAME_PATTERN = "^[A-Za-z][A-Za-z0-9_.-]*$"
-private const val MAX_VALUE_LENGTH = 256
-private val NAME_REGEX = Regex(NAME_PATTERN)
 
 class InvalidEvaluationContextException(val fieldErrors: Map<String, String>) :
     RuntimeException("Invalid evaluation context")
@@ -44,8 +41,8 @@ fun EvaluateRequest?.toEvaluationContext(): EvaluationContext {
     val values = linkedMapOf<String, String>()
     for ((name, node) in attributes) {
         val field = "attributes.$name"
-        if (name.length > MAX_NAME_LENGTH || !NAME_REGEX.matches(name)) {
-            errors[field] = "name must match $NAME_PATTERN and be at most $MAX_NAME_LENGTH characters"
+        if (!Attribute.isValidName(name)) {
+            errors[field] = "name ${Attribute.NAME_RULE}"
             continue
         }
         if (node == null || !node.isString) {
@@ -53,8 +50,8 @@ fun EvaluateRequest?.toEvaluationContext(): EvaluationContext {
             continue
         }
         val value = node.asString()
-        if (value.isBlank() || value.length > MAX_VALUE_LENGTH) {
-            errors[field] = "value must not be blank and be at most $MAX_VALUE_LENGTH characters"
+        if (!Attribute.isValidValue(value)) {
+            errors[field] = "value ${Attribute.VALUE_RULE}"
             continue
         }
         values[name] = value

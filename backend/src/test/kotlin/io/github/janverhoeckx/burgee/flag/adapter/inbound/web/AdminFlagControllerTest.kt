@@ -162,4 +162,19 @@ class AdminFlagControllerTest {
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
     }
+
+    @Test
+    fun `create and update return 400 with field errors for an invalid Targeting Rule`() {
+        val violations = mapOf("conditions[0].values" to "must contain at least one value")
+        every { createFlag.create(any()) } returns CreateFlagUseCase.Result.InvalidTargetingRule(violations)
+        every { updateFlag.update(any()) } returns UpdateFlagUseCase.Result.InvalidTargetingRule(violations)
+
+        val created = controller.create(CreateFeatureFlagRequest("k", "n", "d", false))
+        val updated = controller.update(id, UpdateFeatureFlagRequest("n", null, true))
+
+        listOf(created, updated).forEach { response ->
+            assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+            assertThat((response.body as ApiError).fieldErrors).isEqualTo(violations)
+        }
+    }
 }

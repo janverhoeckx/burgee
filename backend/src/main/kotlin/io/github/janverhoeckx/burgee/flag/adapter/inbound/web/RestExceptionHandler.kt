@@ -1,6 +1,5 @@
 package io.github.janverhoeckx.burgee.flag.adapter.inbound.web
 
-import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
@@ -18,14 +17,4 @@ class RestExceptionHandler {
     @ExceptionHandler(InvalidEvaluationContextException::class)
     fun handleInvalidEvaluationContext(ex: InvalidEvaluationContextException): ResponseEntity<ApiError> =
         validationFailed(ex.fieldErrors)
-
-    private fun validationFailed(fieldErrors: Map<String, String?>): ResponseEntity<ApiError> {
-        val body = ApiError(
-            status = HttpStatus.BAD_REQUEST.value(),
-            error = HttpStatus.BAD_REQUEST.reasonPhrase,
-            message = "Validation failed",
-            fieldErrors = fieldErrors,
-        )
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body)
-    }
 }

@@ -34,6 +34,7 @@ class FlagDtosTest {
                 enabled = true,
                 createdAt = now,
                 updatedAt = now.plusSeconds(60),
+                conditions = emptyList(),
             ),
         )
     }

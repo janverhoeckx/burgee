@@ -8,7 +8,7 @@ A simple, self-hostable, open-source feature flag service.
 - **User management** — create, edit, and delete users from the dashboard. Role-based access control with three roles: Admin, User, and New.
 - **Flexible authentication** — HTTP Basic (default) or stateless JWT against any OIDC provider. Switch with a single environment variable.
 - **Auto-provisioning** — SSO users are automatically created on first login with the `NEW` role; an admin upgrades them.
-- **Public REST API** — fetch flags from your apps with a single GET.
+- **Public REST API** — evaluate flags from your apps with a single POST, optionally against an Evaluation Context (targeting).
 - **Single container** — frontend and backend ship together; one image, one port.
 
 ## Quickstart
@@ -53,11 +53,36 @@ The old `GET /api/v1/flags` and `GET /api/v1/flags/{key}` endpoints have been re
 ```
 GET    /api/admin/flags
 GET    /api/admin/flags/{id}
-POST   /api/admin/flags                 { "key": "...", "name": "...", "description": "...", "enabled": false }
-PUT    /api/admin/flags/{id}            { "name": "...", "description": "...", "enabled": true }
+POST   /api/admin/flags                 { "key": "...", "name": "...", "description": "...", "enabled": false, "conditions": [...] }
+PUT    /api/admin/flags/{id}            { "name": "...", "description": "...", "enabled": true, "conditions": [...] }
 POST   /api/admin/flags/{id}/toggle
 DELETE /api/admin/flags/{id}
 ```
+
+#### Targeting Rules
+
+A flag's Targeting Rule is its list of **Conditions**. An Evaluation is `enabled AND every Condition matches`, so `enabled` stays the kill switch and an enabled flag without Conditions is on for everyone.
+
+```json
+"conditions": [
+  { "attribute": "organisationId", "operator": "IN", "values": ["acme", "globex"] },
+  { "attribute": "country",        "operator": "IN", "values": ["nl"] }
+]
+```
+
+- A Condition matches when the Evaluation Context holds its `attribute` with one of its `values`. Matching is exact and case-sensitive. If the Attribute is missing from the context, the Condition doesn't match and the flag evaluates to false.
+- `IN` is the only operator.
+- `conditions` is optional on create and update and defaults to `[]`. Every save replaces the whole list, so a `PUT` without `conditions` removes them. Toggling keeps them.
+- Admin responses include `conditions`. The public evaluate API never returns them.
+- Duplicate values are silently removed.
+- `400 Bad Request`, with the offending path in `fieldErrors` (e.g. `conditions[0].values[2]`), when:
+  - an `attribute` doesn't match `^[A-Za-z][A-Za-z0-9_.-]*$` or is longer than 64 characters,
+  - two Conditions use the same `attribute`,
+  - `operator` is not `IN`,
+  - `values` is empty or holds more than 1000 distinct values,
+  - a value is blank or longer than 256 characters.
+
+> **Value lists are not secret.** Anyone who can reach the public evaluate API can find out whether a given value is in a Condition's list by submitting it and watching the result. Only put identifiers in value lists that you don't mind being guessed, never secrets such as tokens or passwords.
 
 ### Admin — Users (requires `ADMIN` role)
 
@@ -81,7 +106,8 @@ Example:
 ```bash
 curl -u admin:admin -X POST http://localhost:8080/api/admin/flags \
   -H 'Content-Type: application/json' \
-  -d '{"key":"new-checkout","name":"New checkout","enabled":false}'
+  -d '{"key":"new-checkout","name":"New checkout","enabled":true,
+       "conditions":[{"attribute":"organisationId","operator":"IN","values":["acme"]}]}'
 ```
 
 ## Authentication
@@ -169,7 +195,7 @@ In production the SPA is served by the backend at `/`, so no proxy is needed.
 ## Roadmap
 
 - Environments (dev/staging/prod) per flag
-- Targeting rules / percentage rollouts
+- Percentage rollouts and more Condition operators
 - API tokens for service auth
 
 ## License

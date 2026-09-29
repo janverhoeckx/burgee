@@ -1,5 +1,7 @@
 package io.github.janverhoeckx.burgee.flag.adapter.outbound.persistence
 
+import io.github.janverhoeckx.burgee.flag.domain.Condition
+import io.github.janverhoeckx.burgee.flag.domain.ConditionOperator
 import io.github.janverhoeckx.burgee.flag.domain.FeatureFlag
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -56,5 +58,23 @@ class FeatureFlagMapperTest {
         assertThat(row.description).isNull()
 
         assertThat(row.toDomain().description).isNull()
+    }
+
+    @Test
+    fun `Conditions map both directions, keeping their order`() {
+        val targeted = domain.copy(
+            conditions = listOf(
+                Condition.of("organisationId", ConditionOperator.IN, listOf("acme", "globex")),
+                Condition.of("country", ConditionOperator.IN, listOf("nl")),
+            ),
+        )
+
+        val row = targeted.toRow(newRecord = false)
+
+        assertThat(row.conditions).containsExactly(
+            FlagConditionRow("organisationId", "IN", listOf("acme", "globex")),
+            FlagConditionRow("country", "IN", listOf("nl")),
+        )
+        assertThat(row.toDomain()).isEqualTo(targeted)
     }
 }

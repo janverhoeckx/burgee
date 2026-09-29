@@ -1,6 +1,7 @@
 package io.github.janverhoeckx.burgee.flag.domain
 
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.UUID
@@ -113,5 +114,73 @@ class FeatureFlagTest {
 
         assertThat(on.evaluate(context)).isTrue()
         assertThat(off.evaluate(context)).isFalse()
+    }
+
+    private fun targeted(vararg conditions: Condition, enabled: Boolean = true) =
+        FeatureFlag.create("k", "n", null, enabled = enabled, now = now, id = id, conditions = conditions.toList())
+
+    private fun context(vararg attributes: Pair<String, String>) = EvaluationContext(mapOf(*attributes))
+
+    @Test
+    fun `an enabled flag evaluates to true when the Attribute is in the Condition's values`() {
+        val flag = targeted(Condition.of("organisationId", ConditionOperator.IN, listOf("acme", "globex")))
+
+        assertThat(flag.evaluate(context("organisationId" to "globex"))).isTrue()
+    }
+
+    private val orgIn = Condition.of("organisationId", ConditionOperator.IN, listOf("acme", "globex"))
+
+    @Test
+    fun `an enabled flag evaluates to false when the Attribute value is not in the Condition's values`() {
+        assertThat(targeted(orgIn).evaluate(context("organisationId" to "initech"))).isFalse()
+    }
+
+    @Test
+    fun `matching is exact and case-sensitive`() {
+        assertThat(targeted(orgIn).evaluate(context("organisationId" to "ACME"))).isFalse()
+        assertThat(targeted(orgIn).evaluate(context("organisationId" to "acme "))).isFalse()
+    }
+
+    @Test
+    fun `a Condition whose Attribute is missing from the context does not match`() {
+        assertThat(targeted(orgIn).evaluate(context("country" to "nl"))).isFalse()
+        assertThat(targeted(orgIn).evaluate(EvaluationContext.EMPTY)).isFalse()
+    }
+
+    @Test
+    fun `every Condition must match`() {
+        val flag = targeted(orgIn, Condition.of("country", ConditionOperator.IN, listOf("nl")))
+
+        assertThat(flag.evaluate(context("organisationId" to "acme", "country" to "nl"))).isTrue()
+        assertThat(flag.evaluate(context("organisationId" to "acme", "country" to "be"))).isFalse()
+    }
+
+    @Test
+    fun `a disabled flag evaluates to false even when its Conditions match`() {
+        assertThat(targeted(orgIn, enabled = false).evaluate(context("organisationId" to "acme"))).isFalse()
+    }
+
+    @Test
+    fun `a Condition cannot be built with invalid input`() {
+        assertThatThrownBy { Condition.of("organisationId", ConditionOperator.IN, emptyList()) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+        assertThatThrownBy { Condition.of("1org", ConditionOperator.IN, listOf("acme")) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `a flag cannot hold two Conditions on the same Attribute`() {
+        assertThatThrownBy { targeted(orgIn, Condition.of("organisationId", ConditionOperator.IN, listOf("x"))) }
+            .isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `withDetails replaces the Conditions and toggled keeps them`() {
+        val flag = targeted(orgIn)
+        val country = Condition.of("country", ConditionOperator.IN, listOf("nl"))
+
+        assertThat(flag.withDetails("n", null, true, later, conditions = listOf(country)).conditions)
+            .containsExactly(country)
+        assertThat(flag.toggled(later).conditions).containsExactly(orgIn)
     }
 }

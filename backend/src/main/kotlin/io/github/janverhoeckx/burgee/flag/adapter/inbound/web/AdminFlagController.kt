@@ -47,6 +47,7 @@ class AdminFlagController(
                 ResponseEntity.status(HttpStatus.CREATED).body(result.flag.toResponse())
             is CreateFlagUseCase.Result.DuplicateKey ->
                 apiError(HttpStatus.CONFLICT, "Flag with key '${result.key}' already exists")
+            is CreateFlagUseCase.Result.InvalidTargetingRule -> validationFailed(result.violations)
         }
 
     @PutMapping("/{id}")
@@ -57,6 +58,7 @@ class AdminFlagController(
         when (val result = updateFlag.update(request.toCommand(id))) {
             is UpdateFlagUseCase.Result.Updated -> ResponseEntity.ok(result.flag.toResponse())
             UpdateFlagUseCase.Result.NotFound -> notFound("Flag $id not found")
+            is UpdateFlagUseCase.Result.InvalidTargetingRule -> validationFailed(result.violations)
         }
 
     @PostMapping("/{id}/toggle")

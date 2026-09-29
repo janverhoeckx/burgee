@@ -1,5 +1,6 @@
 package io.github.janverhoeckx.burgee.flag.application.port.inbound
 
+import io.github.janverhoeckx.burgee.flag.domain.Condition
 import io.github.janverhoeckx.burgee.flag.domain.Evaluation
 import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
 import io.github.janverhoeckx.burgee.flag.domain.FeatureFlag
@@ -24,11 +25,14 @@ interface CreateFlagUseCase {
         val name: String,
         val description: String?,
         val enabled: Boolean,
+        /** The Targeting Rule, as raw input; validated by the use case. */
+        val conditions: List<Condition.Input> = emptyList(),
     )
 
     sealed interface Result {
         data class Created(val flag: FeatureFlag) : Result
         data class DuplicateKey(val key: String) : Result
+        data class InvalidTargetingRule(val violations: Map<String, String>) : Result
     }
 
     fun create(command: Command): Result
@@ -40,11 +44,14 @@ interface UpdateFlagUseCase {
         val name: String,
         val description: String?,
         val enabled: Boolean,
+        /** The new Targeting Rule, as raw input; replaces the current one entirely. */
+        val conditions: List<Condition.Input> = emptyList(),
     )
 
     sealed interface Result {
         data class Updated(val flag: FeatureFlag) : Result
         data object NotFound : Result
+        data class InvalidTargetingRule(val violations: Map<String, String>) : Result
     }
 
     fun update(command: Command): Result
