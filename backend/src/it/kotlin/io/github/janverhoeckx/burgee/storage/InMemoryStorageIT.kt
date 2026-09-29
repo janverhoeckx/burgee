@@ -54,6 +54,24 @@ class InMemoryStorageIT(
     }
 
     @Test
+    fun `a created user is stored and can sign in`() {
+        val subject = "mem-user-${System.nanoTime()}"
+        mockMvc.post("/api/admin/users") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"subject":"$subject","role":"USER","password":"secret"}"""
+            with(admin)
+        }.andExpect { status { isCreated() } }
+
+        mockMvc.get("/api/auth/user") {
+            with(httpBasic(subject, "secret"))
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.name") { value(subject) }
+            jsonPath("$.role") { value("USER") }
+        }
+    }
+
+    @Test
     fun `creating a flag with an existing key returns 409`() {
         val key = uniqueKey("dup")
         createFlag(key).andExpect { status { isCreated() } }

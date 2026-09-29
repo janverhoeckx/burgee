@@ -47,6 +47,7 @@ Cross-context links go through inbound ports: `FeatureFlagService` records audit
 
 Cross-cutting packages:
 - `security/`: `SecurityConfig` chooses the auth mode from `burgee.auth.method` (`basic` | `jwt`). Both modes are stateless and have CSRF disabled. In basic mode, `UserDetailsService` loads users from the DB through `FindUserBySubjectUseCase`. In jwt mode, the JWT authorities converter calls `ResolveOrProvisionUserUseCase`, which auto-creates unknown `sub`s with role `NEW`, so authorities always come from the DB role and never from token claims. URL rules: `/api/v1/flags/**` and `/api/auth/info` are public, `/api/admin/**` requires `ADMIN`, other `/api/auth/**` requires authentication, and any other `/api/**` is denied.
+- `storage/`: `StorageConfig` chooses the storage mode from `burgee.storage` (`postgres` | `memory`). In memory mode it supplies an embedded H2 DataSource in PostgreSQL mode plus the Postgres JDBC dialect, and refuses to start when a database URL was set explicitly (ADR 0001). `/api/auth/info` reports the mode so the SPA can show its banner.
 - `web/WebConfig`: SPA fallback that serves `static/index.html` for any unknown path that is not under `api/` or `actuator/`.
 - The bootstrap admin comes from `user/adapter/inbound/bootstrap/BootstrapAdminRunner` (`BURGEE_ADMIN_USERNAME`/`PASSWORD`, or `BURGEE_ADMIN_SUBJECT` in jwt mode).
 

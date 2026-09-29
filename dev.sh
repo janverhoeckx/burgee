@@ -37,6 +37,11 @@ if [[ "$storage" == postgres ]]; then
   echo "Starting Postgres..."
   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait postgres
 else
+  # A DB_URL from .env or the shell would make the backend refuse to start in memory mode.
+  if [[ -n "${DB_URL:-}" ]]; then
+    echo "Ignoring DB_URL in the in-memory storage mode (use --postgres to use a database)."
+    unset DB_URL
+  fi
   echo "Using the in-memory storage mode: all data is lost when the backend stops (use --postgres to keep it)."
 fi
 

@@ -4,9 +4,14 @@ import com.zaxxer.hikari.HikariDataSource
 import org.slf4j.LoggerFactory
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.context.properties.source.ConfigurationPropertySources
+import org.springframework.boot.origin.OriginLookup
+import org.springframework.boot.origin.OriginTrackedResource
+import org.springframework.boot.origin.TextResourceOrigin
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.ConfigurableEnvironment
+import org.springframework.core.io.ClassPathResource
 import org.springframework.data.jdbc.core.dialect.JdbcDialect
 import org.springframework.data.jdbc.core.dialect.JdbcPostgresDialect
 import javax.sql.DataSource
@@ -23,7 +28,7 @@ class StorageConfig {
     @Bean
     @ConditionalOnProperty(name = ["burgee.storage"], havingValue = "memory")
     fun inMemoryDataSource(environment: ConfigurableEnvironment): DataSource {
-        explicitDatabaseUrlSetting(environment)?.let { setting ->
+        explicitDatabaseUrlSettingName(environment)?.let { setting ->
             throw IllegalStateException(
                 "BURGEE_STORAGE=memory cannot be combined with $setting: remove $setting to run in memory, " +
                     "or set BURGEE_STORAGE=postgres to use that database",
@@ -46,16 +51,18 @@ class StorageConfig {
     fun inMemoryJdbcDialect(): JdbcDialect = JdbcPostgresDialect.INSTANCE
 
     /**
-     * Names the setting that points Burgee at a real database, or null when only the built-in default
-     * (`spring.datasource.url: ${DB_URL:...}` in application.yml) is present.
+     * Names the setting that points Burgee at a real database, or null when the only datasource URL is the
+     * built-in default from the application.yml bundled in the jar.
      */
-    private fun explicitDatabaseUrlSetting(environment: ConfigurableEnvironment): String? {
+    private fun explicitDatabaseUrlSettingName(environment: ConfigurableEnvironment): String? {
         if (environment.containsProperty("DB_URL")) return "DB_URL"
-        val rawUrl = environment.propertySources
-            .firstOrNull { it.containsProperty(DATASOURCE_URL) }
-            ?.getProperty(DATASOURCE_URL)
-            ?.toString()
-        return if (rawUrl != null && !rawUrl.startsWith("\${DB_URL:")) DATASOURCE_URL else null
+        val source = environment.propertySources
+            .filterNot(ConfigurationPropertySources::isAttachedConfigurationPropertySource)
+            .firstOrNull { it.containsProperty(DATASOURCE_URL) } ?: return null
+        val origin = OriginLookup.getOrigin(source, DATASOURCE_URL) as? TextResourceOrigin
+        val resource = origin?.resource.let { (it as? OriginTrackedResource)?.resource ?: it }
+        val fromBundledConfig = (resource as? ClassPathResource)?.path == "application.yml"
+        return if (fromBundledConfig) null else DATASOURCE_URL
     }
 
     companion object {

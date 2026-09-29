@@ -26,7 +26,7 @@ interface OidcConfig {
 interface AuthInfo {
   method: AuthMethod;
   oidc?: OidcConfig;
-  storage?: StorageMode;
+  storage: StorageMode;
 }
 
 interface UserInfo {
@@ -80,7 +80,7 @@ export class AuthService {
     return this.http.get<AuthInfo>(`${apiBaseUrl()}/api/auth/info`).pipe(
       switchMap((info) => {
         this._method.set(info.method);
-        this._storage.set(info.storage ?? 'postgres');
+        this._storage.set(info.storage);
         if (info.method === 'jwt' && info.oidc) {
           return this.initOidc(info.oidc).pipe(
             switchMap(() => (this._jwtToken() ? this.fetchBackendUser() : of(undefined as void))),

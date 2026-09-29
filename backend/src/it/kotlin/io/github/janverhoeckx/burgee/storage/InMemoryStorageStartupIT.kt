@@ -2,35 +2,23 @@ package io.github.janverhoeckx.burgee.storage
 
 import io.github.janverhoeckx.burgee.BurgeeApplication
 import org.assertj.core.api.Assertions.assertThatThrownBy
-import org.junit.jupiter.api.Test
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.core.NestedExceptionUtils
 
 class InMemoryStorageStartupIT {
 
-    private fun start(vararg properties: String) =
-        SpringApplicationBuilder(BurgeeApplication::class.java)
-            .run("--server.port=0", *properties.map { "--$it" }.toTypedArray())
-            .close()
-
-    private fun rootCauseMessage(throwable: Throwable): String? =
-        NestedExceptionUtils.getMostSpecificCause(throwable).message
-
-    @Test
-    fun `refuses to start in memory mode when DB_URL is set`() {
-        assertThatThrownBy { start("burgee.storage=memory", "DB_URL=jdbc:postgresql://db.example.com/burgee") }
-            .extracting(::rootCauseMessage)
-            .asString()
-            .contains("BURGEE_STORAGE=memory", "DB_URL")
-    }
-
-    @Test
-    fun `refuses to start in memory mode when spring datasource url is set`() {
+    @ParameterizedTest
+    @ValueSource(strings = ["DB_URL", "spring.datasource.url"])
+    fun `refuses to start in memory mode when a database URL is set`(setting: String) {
         assertThatThrownBy {
-            start("burgee.storage=memory", "spring.datasource.url=jdbc:postgresql://db.example.com/burgee")
+            SpringApplicationBuilder(BurgeeApplication::class.java)
+                .run("--server.port=0", "--burgee.storage=memory", "--$setting=jdbc:postgresql://db.example.com/burgee")
+                .close()
         }
-            .extracting(::rootCauseMessage)
+            .extracting { NestedExceptionUtils.getMostSpecificCause(it).message }
             .asString()
-            .contains("BURGEE_STORAGE=memory", "spring.datasource.url")
+            .contains("BURGEE_STORAGE=memory", setting)
     }
 }
