@@ -12,6 +12,14 @@ class RestExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidation(ex: MethodArgumentNotValidException): ResponseEntity<ApiError> {
         val fieldErrors = ex.bindingResult.fieldErrors.associate { it.field to it.defaultMessage }
+        return validationFailed(fieldErrors)
+    }
+
+    @ExceptionHandler(InvalidEvaluationContextException::class)
+    fun handleInvalidEvaluationContext(ex: InvalidEvaluationContextException): ResponseEntity<ApiError> =
+        validationFailed(ex.fieldErrors)
+
+    private fun validationFailed(fieldErrors: Map<String, String?>): ResponseEntity<ApiError> {
         val body = ApiError(
             status = HttpStatus.BAD_REQUEST.value(),
             error = HttpStatus.BAD_REQUEST.reasonPhrase,

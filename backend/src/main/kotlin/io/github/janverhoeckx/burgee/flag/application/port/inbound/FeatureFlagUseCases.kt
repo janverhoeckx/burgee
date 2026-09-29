@@ -1,5 +1,7 @@
 package io.github.janverhoeckx.burgee.flag.application.port.inbound
 
+import io.github.janverhoeckx.burgee.flag.domain.Evaluation
+import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
 import io.github.janverhoeckx.burgee.flag.domain.FeatureFlag
 import java.util.UUID
 
@@ -14,15 +16,6 @@ interface GetFlagByIdUseCase {
     }
 
     fun getById(id: UUID): Result
-}
-
-interface GetFlagByKeyUseCase {
-    sealed interface Result {
-        data class Found(val flag: FeatureFlag) : Result
-        data object NotFound : Result
-    }
-
-    fun getByKey(key: String): Result
 }
 
 interface CreateFlagUseCase {
@@ -73,4 +66,17 @@ interface DeleteFlagUseCase {
     }
 
     fun delete(id: UUID): Result
+}
+
+interface EvaluateFlagUseCase {
+    sealed interface Result {
+        data class Evaluated(val evaluation: Evaluation) : Result
+        data object NotFound : Result
+    }
+
+    fun evaluate(key: String, context: EvaluationContext): Result
+}
+
+fun interface EvaluateAllFlagsUseCase {
+    fun evaluateAll(context: EvaluationContext): List<Evaluation>
 }

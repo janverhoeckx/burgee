@@ -2,14 +2,17 @@ package io.github.janverhoeckx.burgee.flag.application.service
 
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.CreateFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.DeleteFlagUseCase
+import io.github.janverhoeckx.burgee.flag.application.port.inbound.EvaluateAllFlagsUseCase
+import io.github.janverhoeckx.burgee.flag.application.port.inbound.EvaluateFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.GetFlagByIdUseCase
-import io.github.janverhoeckx.burgee.flag.application.port.inbound.GetFlagByKeyUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.ListFlagsUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.ToggleFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.UpdateFlagUseCase
 import io.github.janverhoeckx.burgee.audit.application.port.inbound.RecordAuditEntryUseCase
 import io.github.janverhoeckx.burgee.audit.domain.AuditAction
 import io.github.janverhoeckx.burgee.flag.application.port.outbound.FeatureFlagRepositoryPort
+import io.github.janverhoeckx.burgee.flag.domain.Evaluation
+import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
 import io.github.janverhoeckx.burgee.flag.domain.FeatureFlag
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -25,11 +28,12 @@ class FeatureFlagService(
     private val clock: Clock,
 ) : ListFlagsUseCase,
     GetFlagByIdUseCase,
-    GetFlagByKeyUseCase,
     CreateFlagUseCase,
     UpdateFlagUseCase,
     ToggleFlagUseCase,
-    DeleteFlagUseCase {
+    DeleteFlagUseCase,
+    EvaluateFlagUseCase,
+    EvaluateAllFlagsUseCase {
 
     @Transactional(readOnly = true)
     override fun list(): List<FeatureFlag> = repository.findAll()
@@ -41,10 +45,14 @@ class FeatureFlagService(
             ?: GetFlagByIdUseCase.Result.NotFound
 
     @Transactional(readOnly = true)
-    override fun getByKey(key: String): GetFlagByKeyUseCase.Result =
+    override fun evaluate(key: String, context: EvaluationContext): EvaluateFlagUseCase.Result =
         repository.findByKey(key)
-            ?.let { GetFlagByKeyUseCase.Result.Found(it) }
-            ?: GetFlagByKeyUseCase.Result.NotFound
+            ?.let { EvaluateFlagUseCase.Result.Evaluated(it.evaluationFor(context)) }
+            ?: EvaluateFlagUseCase.Result.NotFound
+
+    @Transactional(readOnly = true)
+    override fun evaluateAll(context: EvaluationContext): List<Evaluation> =
+        repository.findAll().map { it.evaluationFor(context) }
 
     override fun create(command: CreateFlagUseCase.Command): CreateFlagUseCase.Result {
         if (repository.existsByKey(command.key)) {
@@ -114,6 +122,9 @@ class FeatureFlagService(
     }
 
     private fun quote(value: String?): String = if (value == null) "∅" else "'$value'"
+
+    private fun FeatureFlag.evaluationFor(context: EvaluationContext) =
+        Evaluation(flagKey = key, result = evaluate(context))
 
     private fun now(): Instant = Instant.now(clock)
 }

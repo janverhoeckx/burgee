@@ -18,6 +18,9 @@ data class FeatureFlag(
     fun toggled(now: Instant): FeatureFlag =
         copy(enabled = !enabled, updatedAt = now)
 
+    /** Evaluation: the flag's true/false result for one Evaluation Context. */
+    fun evaluate(context: EvaluationContext): Boolean = enabled
+
     companion object {
         fun create(
             key: String,

@@ -39,11 +39,6 @@ class FlagDtosTest {
     }
 
     @Test
-    fun `toPublic exposes only key and enabled`() {
-        assertThat(flag.toPublic()).isEqualTo(PublicFlagResponse("checkout-v2", true))
-    }
-
-    @Test
     fun `CreateFeatureFlagRequest builds command verbatim`() {
         val command = CreateFeatureFlagRequest(
             key = "k",

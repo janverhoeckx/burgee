@@ -90,4 +90,28 @@ class FeatureFlagTest {
 
         assertThat(twice.enabled).isTrue()
     }
+
+    @Test
+    fun `a disabled flag evaluates to false`() {
+        val flag = FeatureFlag.create("k", "n", null, enabled = false, now = now, id = id)
+
+        assertThat(flag.evaluate(EvaluationContext.EMPTY)).isFalse()
+    }
+
+    @Test
+    fun `an enabled flag evaluates to true for an empty context`() {
+        val flag = FeatureFlag.create("k", "n", null, enabled = true, now = now, id = id)
+
+        assertThat(flag.evaluate(EvaluationContext.EMPTY)).isTrue()
+    }
+
+    @Test
+    fun `attributes no flag uses do not change the Evaluation`() {
+        val context = EvaluationContext(mapOf("organisationId" to "acme"))
+        val on = FeatureFlag.create("k", "n", null, enabled = true, now = now, id = id)
+        val off = on.copy(enabled = false)
+
+        assertThat(on.evaluate(context)).isTrue()
+        assertThat(off.evaluate(context)).isFalse()
+    }
 }

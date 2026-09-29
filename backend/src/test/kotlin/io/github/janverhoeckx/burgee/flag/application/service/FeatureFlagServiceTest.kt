@@ -2,13 +2,15 @@ package io.github.janverhoeckx.burgee.flag.application.service
 
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.CreateFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.DeleteFlagUseCase
+import io.github.janverhoeckx.burgee.flag.application.port.inbound.EvaluateFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.GetFlagByIdUseCase
-import io.github.janverhoeckx.burgee.flag.application.port.inbound.GetFlagByKeyUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.ToggleFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.UpdateFlagUseCase
 import io.github.janverhoeckx.burgee.audit.application.port.inbound.RecordAuditEntryUseCase
 import io.github.janverhoeckx.burgee.audit.domain.AuditAction
 import io.github.janverhoeckx.burgee.flag.application.port.outbound.FeatureFlagRepositoryPort
+import io.github.janverhoeckx.burgee.flag.domain.Evaluation
+import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
 import io.github.janverhoeckx.burgee.flag.domain.FeatureFlag
 import io.mockk.every
 import io.mockk.mockk
@@ -60,22 +62,6 @@ class FeatureFlagServiceTest {
 
         assertThat(service.getById(id))
             .isEqualTo(GetFlagByIdUseCase.Result.Found(existing))
-    }
-
-    @Test
-    fun `getByKey returns NotFound when missing`() {
-        every { repository.findByKey("missing") } returns null
-
-        assertThat(service.getByKey("missing"))
-            .isEqualTo(GetFlagByKeyUseCase.Result.NotFound)
-    }
-
-    @Test
-    fun `getByKey returns Found when present`() {
-        every { repository.findByKey("checkout-v2") } returns existing
-
-        assertThat(service.getByKey("checkout-v2"))
-            .isEqualTo(GetFlagByKeyUseCase.Result.Found(existing))
     }
 
     @Test
@@ -236,5 +222,31 @@ class FeatureFlagServiceTest {
         service.create(CreateFlagUseCase.Command("checkout-v2", "name", null, false))
 
         verify(exactly = 0) { auditTrail.record(any()) }
+    }
+
+    @Test
+    fun `evaluate returns NotFound for an unknown key`() {
+        every { repository.findByKey("missing") } returns null
+
+        assertThat(service.evaluate("missing", EvaluationContext.EMPTY))
+            .isEqualTo(EvaluateFlagUseCase.Result.NotFound)
+    }
+
+    @Test
+    fun `evaluate returns the Evaluation of the flag with that key`() {
+        every { repository.findByKey("checkout-v2") } returns existing.copy(enabled = true)
+
+        assertThat(service.evaluate("checkout-v2", EvaluationContext(mapOf("organisationId" to "acme"))))
+            .isEqualTo(EvaluateFlagUseCase.Result.Evaluated(Evaluation("checkout-v2", true)))
+    }
+
+    @Test
+    fun `evaluateAll returns an Evaluation for every flag, including disabled ones`() {
+        val on = existing.copy(key = "a-on", enabled = true)
+        val off = existing.copy(key = "b-off", enabled = false)
+        every { repository.findAll() } returns listOf(on, off)
+
+        assertThat(service.evaluateAll(EvaluationContext.EMPTY))
+            .containsExactly(Evaluation("a-on", true), Evaluation("b-off", false))
     }
 }

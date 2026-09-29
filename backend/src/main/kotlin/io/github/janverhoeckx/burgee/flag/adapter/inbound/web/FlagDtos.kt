@@ -19,11 +19,6 @@ data class FeatureFlagResponse(
     val updatedAt: Instant,
 )
 
-data class PublicFlagResponse(
-    val key: String,
-    val enabled: Boolean,
-)
-
 data class CreateFeatureFlagRequest(
     @field:NotBlank
     @field:Size(max = 128)
@@ -74,5 +69,3 @@ fun FeatureFlag.toResponse() = FeatureFlagResponse(
     createdAt = createdAt,
     updatedAt = updatedAt,
 )
-
-fun FeatureFlag.toPublic() = PublicFlagResponse(key = key, enabled = enabled)

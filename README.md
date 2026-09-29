@@ -20,7 +20,7 @@ docker compose up --build
 Then open:
 
 - **Dashboard**: http://localhost:8080 (default login: `admin` / `admin`)
-- **Public flags API**: http://localhost:8080/api/v1/flags
+- **Public flags API**: `POST http://localhost:8080/api/v1/flags/evaluate` (see [REST API](#rest-api))
 
 > **Change the default admin credentials** before exposing Burgee anywhere. Set `BURGEE_ADMIN_USERNAME` and `BURGEE_ADMIN_PASSWORD` in your environment or a `.env` file. For JWT, set `BURGEE_AUTH_METHOD` and `BURGEE_ADMIN_SUBJECT` instead.
 
@@ -28,10 +28,25 @@ Then open:
 
 ### Public (no auth)
 
+Clients read flags only through Evaluations: they submit an Evaluation Context of string Attributes and get the result back.
+
 ```
-GET  /api/v1/flags           → [{ "key": "checkout-v2", "enabled": true }, …]
-GET  /api/v1/flags/{key}     → { "key": "checkout-v2", "enabled": true }
+POST /api/v1/flags/{key}/evaluate   { "attributes": { "organisationId": "acme" } }
+                                    → { "key": "checkout-v2", "enabled": true }      (404 if the key is unknown)
+POST /api/v1/flags/evaluate         { "attributes": { "organisationId": "acme" } }
+                                    → [{ "key": "checkout-v2", "enabled": true }, …] (every flag, disabled ones as false)
 ```
+
+- `enabled` in the response is the Evaluation result, not the flag's master switch.
+- The body is optional: a missing body or missing `attributes` counts as an empty context. Attributes no flag uses are ignored.
+- `400 Bad Request` when an attribute value is not a JSON string (numbers, booleans, `null`, arrays and objects are rejected), when there are more than 50 attributes, when a name doesn't match `^[A-Za-z][A-Za-z0-9_.-]*$` or is longer than 64 characters, or when a value is blank or longer than 256 characters.
+
+```bash
+curl -X POST http://localhost:8080/api/v1/flags/checkout-v2/evaluate \
+  -H 'Content-Type: application/json' -d '{"attributes":{"organisationId":"acme"}}'
+```
+
+The old `GET /api/v1/flags` and `GET /api/v1/flags/{key}` endpoints have been removed.
 
 ### Admin — Flags (requires `ADMIN` role)
 
