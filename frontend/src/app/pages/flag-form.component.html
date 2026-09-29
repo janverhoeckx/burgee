@@ -32,7 +32,63 @@
       <label for="enabled" class="inline">Enabled</label>
     </div>
 
+    <fieldset class="conditions" formArrayName="conditions">
+      <legend>Targeting Rule</legend>
+      <p class="hint">
+        With no Conditions, an enabled flag is on for everyone. Otherwise every Condition must
+        match the Evaluation Context.
+      </p>
+
+      @for (row of conditions.controls; track row; let i = $index) {
+        <div class="condition" [formGroupName]="i">
+          <div class="condition-attribute-field">
+            <label [for]="'condition-attribute-' + i">Attribute</label>
+            <input
+              [id]="'condition-attribute-' + i"
+              class="condition-attribute"
+              type="text"
+              formControlName="attribute"
+              placeholder="organisationId"
+            />
+            @for (message of conditionErrors()[i]?.attribute ?? []; track message) {
+              <div class="error">{{ message }}</div>
+            }
+          </div>
+          <span class="condition-operator" title="The Attribute must be one of the values">IN</span>
+          <div class="condition-values-field">
+            <label [for]="'condition-values-' + i">Values (one per line)</label>
+            <textarea
+              [id]="'condition-values-' + i"
+              class="condition-values"
+              rows="3"
+              formControlName="values"
+              placeholder="acme"
+            ></textarea>
+            @for (message of conditionErrors()[i]?.values ?? []; track message) {
+              <div class="error">{{ message }}</div>
+            }
+          </div>
+          <button
+            type="button"
+            class="danger remove-condition"
+            [attr.aria-label]="'Remove condition ' + (i + 1)"
+            (click)="removeCondition(i)"
+          >
+            Remove
+          </button>
+          @for (message of conditionErrors()[i]?.other ?? []; track message) {
+            <div class="error condition-error">{{ message }}</div>
+          }
+        </div>
+      }
+
+      <button type="button" class="add-condition" (click)="addCondition()">+ Add condition</button>
+    </fieldset>
+
     @if (error()) { <div class="error">{{ error() }}</div> }
+    @for (message of fieldErrors(); track message) {
+      <div class="error">{{ message }}</div>
+    }
 
     <div class="actions">
       <button type="button" routerLink="/flags">Cancel</button>

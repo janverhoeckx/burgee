@@ -41,7 +41,16 @@
         <tr>
           <td data-label="Key"><code>{{ flag.key }}</code></td>
           <td data-label="Name">
-            <div>{{ flag.name }}</div>
+            <div class="name">
+              {{ flag.name }}
+              @if (flag.conditions.length > 0) {
+                <span
+                  class="badge badge-targeted"
+                  title="Only on for Evaluation Contexts that match its Targeting Rule"
+                  >Targeted</span
+                >
+              }
+            </div>
             @if (flag.description) { <div class="muted small">{{ flag.description }}</div> }
           </td>
           <td data-label="Status">

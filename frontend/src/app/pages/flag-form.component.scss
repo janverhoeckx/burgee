@@ -33,6 +33,55 @@ input[readonly] {
   }
 }
 
+fieldset.conditions {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin: 0 0 1rem;
+
+  legend {
+    padding: 0 0.4rem;
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+
+  .hint {
+    margin: 0 0 1rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+}
+
+.condition {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.5fr) auto;
+  align-items: start;
+  gap: 0.7rem;
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+
+  .condition-operator {
+    margin-top: 1.9rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+
+  .remove-condition {
+    margin-top: 1.55rem;
+  }
+
+  .condition-error {
+    grid-column: 1 / -1;
+  }
+}
+
 .actions {
   display: flex;
   gap: 0.6rem;
@@ -47,5 +96,24 @@ input[readonly] {
 
   .actions button {
     flex: 1;
+  }
+
+  .condition {
+    grid-template-columns: minmax(0, 1fr) auto;
+
+    .condition-attribute-field {
+      grid-column: 1;
+    }
+
+    .condition-operator {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    .condition-values-field,
+    .remove-condition {
+      grid-column: 1 / -1;
+      margin-top: 0;
+    }
   }
 }
