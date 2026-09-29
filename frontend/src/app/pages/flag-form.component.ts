@@ -1,22 +1,14 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, FormGroup, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Condition, FlagService } from '../core/flag.service';
+import { Condition, ConditionOperator, FlagService } from '../core/flag.service';
+import { ConditionRowErrors, parseConditionFieldErrors } from '../core/targeting-rule-errors';
 
 /** One editor row: an Attribute name and its values, one per line. The operator is always IN. */
 type ConditionRow = FormGroup<{
   attribute: FormControl<string>;
   values: FormControl<string>;
 }>;
-
-/** Backend validation messages for one Condition row, grouped by the field they belong to. */
-interface ConditionRowErrors {
-  attribute: string[];
-  values: string[];
-  other: string[];
-}
-
-const CONDITION_FIELD = /^conditions\[(\d+)\]\.(attribute|values|operator)(?:\[(\d+)\])?$/;
 
 @Component({
   selector: 'app-flag-form',
@@ -38,6 +30,8 @@ export class FlagFormComponent implements OnInit {
   protected readonly conditionErrors = signal<Record<number, ConditionRowErrors>>({});
   /** Backend field errors that don't belong to a Condition row. */
   protected readonly fieldErrors = signal<string[]>([]);
+  /** The operator every editor row uses; shown read-only next to the Attribute. */
+  protected readonly operator = ConditionOperator.In;
 
   protected readonly form = this.fb.nonNullable.group({
     key: ['', [Validators.required, Validators.pattern(/^[a-z0-9][a-z0-9._-]*$/)]],
@@ -61,23 +55,8 @@ export class FlagFormComponent implements OnInit {
   }
 
   private showFieldErrors(fieldErrors: Record<string, string | null>): void {
-    const perRow: Record<number, ConditionRowErrors> = {};
-    const general: string[] = [];
-    for (const [field, message] of Object.entries(fieldErrors)) {
-      const match = CONDITION_FIELD.exec(field);
-      if (!match) {
-        general.push(`${field}: ${message ?? 'invalid'}`);
-        continue;
-      }
-      const [, index, part, valueIndex] = match;
-      const row = (perRow[+index] ??= { attribute: [], values: [], other: [] });
-      const text = message ?? 'invalid';
-      if (part === 'attribute') row.attribute.push(text);
-      else if (part === 'values')
-        row.values.push(valueIndex === undefined ? text : `Value ${+valueIndex + 1}: ${text}`);
-      else row.other.push(text);
-    }
-    this.conditionErrors.set(perRow);
+    const { conditions, general } = parseConditionFieldErrors(fieldErrors);
+    this.conditionErrors.set(conditions);
     this.fieldErrors.set(general);
   }
 
@@ -85,7 +64,7 @@ export class FlagFormComponent implements OnInit {
   private parseConditions(): Condition[] {
     return this.conditions.getRawValue().map((row) => ({
       attribute: row.attribute.trim(),
-      operator: 'IN',
+      operator: ConditionOperator.In,
       values: row.values
         .split('\n')
         .map((v) => v.trim())
@@ -110,7 +89,7 @@ export class FlagFormComponent implements OnInit {
             enabled: flag.enabled,
           });
           this.conditions.clear();
-          for (const c of flag.conditions ?? []) {
+          for (const c of flag.conditions) {
             this.conditions.push(this.conditionRow(c.attribute, c.values.join('\n')));
           }
           this.form.controls.key.disable();

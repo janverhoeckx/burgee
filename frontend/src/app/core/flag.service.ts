@@ -3,8 +3,9 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { apiBaseUrl } from './api.config';
 
-/** The only operator a Condition supports for now. */
-export type ConditionOperator = 'IN';
+/** Operators a Condition supports. For now only IN: the Attribute must be one of the values. */
+export const ConditionOperator = { In: 'IN' } as const;
+export type ConditionOperator = (typeof ConditionOperator)[keyof typeof ConditionOperator];
 
 /** One requirement in a flag's Targeting Rule: the Attribute must have one of the values. */
 export interface Condition {

@@ -54,7 +54,7 @@
               <div class="error">{{ message }}</div>
             }
           </div>
-          <span class="condition-operator" title="The Attribute must be one of the values">IN</span>
+          <span class="condition-operator" title="The Attribute must be one of the values">{{ operator }}</span>
           <div class="condition-values-field">
             <label [for]="'condition-values-' + i">Values (one per line)</label>
             <textarea
