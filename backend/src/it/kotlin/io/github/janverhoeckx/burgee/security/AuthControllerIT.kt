@@ -46,6 +46,16 @@ class AuthControllerIT(
     }
 
     @Test
+    fun `GET info reports the postgres storage mode by default`() {
+        mockMvc.get("/api/auth/info") {
+            with(anonymous())
+        }.andExpect {
+            status { isOk() }
+            jsonPath("$.storage") { value("postgres") }
+        }
+    }
+
+    @Test
     fun `GET user returns admin identity for the bootstrap admin`() {
         mockMvc.get("/api/auth/user") {
             with(admin)

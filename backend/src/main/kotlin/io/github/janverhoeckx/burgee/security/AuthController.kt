@@ -1,5 +1,6 @@
 package io.github.janverhoeckx.burgee.security
 
+import io.github.janverhoeckx.burgee.storage.StorageProperties
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController
 class AuthController(
     private val authProperties: AuthProperties,
     private val jwtProperties: JwtProperties,
+    private val storageProperties: StorageProperties,
 ) {
 
     @GetMapping("/info")
@@ -29,6 +31,7 @@ class AuthController(
         return AuthInfoResponse(
             method = authProperties.method.name.lowercase(),
             oidc = oidc,
+            storage = storageProperties.storage.name.lowercase(),
         )
     }
 
@@ -51,6 +54,7 @@ class AuthController(
 data class AuthInfoResponse(
     val method: String,
     val oidc: OidcClientConfig? = null,
+    val storage: String,
 )
 
 data class OidcClientConfig(

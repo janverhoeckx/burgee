@@ -6,7 +6,7 @@ CREATE TABLE flag_condition (
     position  INTEGER      NOT NULL,
     attribute VARCHAR(64)  NOT NULL,
     operator  VARCHAR(16)  NOT NULL,
-    "values"  TEXT[]       NOT NULL,
+    "values"  VARCHAR(256) ARRAY NOT NULL,
     PRIMARY KEY (flag_id, position),
     UNIQUE (flag_id, attribute)
 );

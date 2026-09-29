@@ -4,6 +4,14 @@ Burgee is a self-hostable feature flag service: admins manage flags, client appl
 
 ## Language
 
+### Running Burgee
+
+**Storage mode**:
+Where Burgee keeps flags, users and audit entries: **Postgres** (durable) or **In-memory** (everything is lost on restart, meant for evaluation and local development).
+_Avoid_: H2 mode, demo mode, dev mode, database mode
+
+### Flags and evaluation
+
 **Feature Flag**:
 A named switch, identified by a unique key, that client applications query to decide whether a feature is on.
 _Avoid_: toggle, feature switch
