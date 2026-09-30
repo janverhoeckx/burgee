@@ -65,7 +65,7 @@ describe('LoginComponent', () => {
     expect(fixture.nativeElement.querySelector('#password')).toBeTruthy();
   });
 
-  it('probes the API, stores credentials, and navigates on a successful basic login', async () => {
+  it('checks the credentials against the signed-in user endpoint, stores them, and navigates', async () => {
     setup();
     await fixture.whenStable();
     const router = TestBed.inject(Router);
@@ -77,12 +77,31 @@ describe('LoginComponent', () => {
 
     fixture.componentInstance.submit();
 
-    const req = httpMock.expectOne('/api/admin/flags');
+    const req = httpMock.expectOne('/api/auth/user');
     expect(req.request.headers.get('Authorization')).toBe('Basic ' + btoa('alice:secret'));
-    req.flush([]);
+    req.flush({ name: 'alice', role: 'ADMIN' });
     await fixture.whenStable();
 
     expect(auth.storeBasic).toHaveBeenCalledWith('alice', 'secret');
+    expect(navigate).toHaveBeenCalledWith(['/flags']);
+  });
+
+  it('signs in a user without the Admin role', async () => {
+    setup();
+    await fixture.whenStable();
+    const router = TestBed.inject(Router);
+    const navigate = vi.spyOn(router, 'navigate').mockResolvedValue(true);
+
+    type('#username', 'bob');
+    type('#password', 'secret');
+    await fixture.whenStable();
+
+    fixture.componentInstance.submit();
+
+    httpMock.expectOne('/api/auth/user').flush({ name: 'bob', role: 'NEW' });
+    await fixture.whenStable();
+
+    expect(auth.storeBasic).toHaveBeenCalledWith('bob', 'secret');
     expect(navigate).toHaveBeenCalledWith(['/flags']);
   });
 
@@ -97,7 +116,7 @@ describe('LoginComponent', () => {
     fixture.componentInstance.submit();
 
     httpMock
-      .expectOne('/api/admin/flags')
+      .expectOne('/api/auth/user')
       .flush(null, { status: 401, statusText: 'Unauthorized' });
     await fixture.whenStable();
 

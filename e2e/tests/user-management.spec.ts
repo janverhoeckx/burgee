@@ -19,7 +19,6 @@ test.describe('user management', () => {
       await usersListPage.goto();
       await usersListPage.newUser.click();
       await expect(userFormPage.heading).toHaveText('New user');
-      // Admin, because the login page probes an admin endpoint: a New or `USER` User can't sign in yet (#16).
       await userFormPage.createUser({ username, displayName: 'Created by e2e', role: 'ADMIN', password });
 
       await expect(page).toHaveURL(/\/users$/);

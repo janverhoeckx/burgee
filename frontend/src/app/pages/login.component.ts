@@ -50,7 +50,8 @@ export class LoginComponent implements OnInit {
     this.loading.set(true);
     this.error.set(null);
 
-    const probe = `${apiBaseUrl()}/api/admin/flags`;
+    // Any signed-in User may read this, whatever their Role; an Admin-only probe would refuse New users.
+    const probe = `${apiBaseUrl()}/api/auth/user`;
     const headers = { Authorization: 'Basic ' + btoa(`${username}:${password}`) };
 
     this.http.get(probe, { headers }).subscribe({
