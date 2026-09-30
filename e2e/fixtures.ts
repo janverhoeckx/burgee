@@ -5,6 +5,8 @@ import { baseURL, e2eEnv } from './env';
 import { FlagFormPage } from './pages/flag-form-page';
 import { FlagsListPage } from './pages/flags-list-page';
 import { LoginPage } from './pages/login-page';
+import { UserFormPage } from './pages/user-form-page';
+import { UsersListPage } from './pages/users-list-page';
 import { restoreSession } from './support/session';
 
 type Options = {
@@ -16,6 +18,8 @@ type Fixtures = {
   loginPage: LoginPage;
   flagsListPage: FlagsListPage;
   flagFormPage: FlagFormPage;
+  usersListPage: UsersListPage;
+  userFormPage: UserFormPage;
   adminApi: AdminApi;
   /** A request context with no credentials, as an application calling the public API has. */
   anonymousRequest: APIRequestContext;
@@ -40,6 +44,14 @@ export const test = base.extend<Options & Fixtures>({
 
   flagFormPage: async ({ page }, use) => {
     await use(new FlagFormPage(page));
+  },
+
+  usersListPage: async ({ page }, use) => {
+    await use(new UsersListPage(page));
+  },
+
+  userFormPage: async ({ page }, use) => {
+    await use(new UserFormPage(page));
   },
 
   adminApi: async ({ playwright }, use) => {
