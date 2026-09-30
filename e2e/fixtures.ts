@@ -1,5 +1,6 @@
-import { test as base } from '@playwright/test';
+import { test as base, type APIRequestContext } from '@playwright/test';
 import { AdminApi } from './api/admin-api';
+import { EvaluationApi } from './api/evaluation-api';
 import { baseURL, e2eEnv } from './env';
 import { FlagFormPage } from './pages/flag-form-page';
 import { FlagsListPage } from './pages/flags-list-page';
@@ -16,6 +17,9 @@ type Fixtures = {
   flagsListPage: FlagsListPage;
   flagFormPage: FlagFormPage;
   adminApi: AdminApi;
+  /** A request context with no credentials, as an application calling the public API has. */
+  anonymousRequest: APIRequestContext;
+  evaluationApi: EvaluationApi;
 };
 
 export const test = base.extend<Options & Fixtures>({
@@ -46,6 +50,16 @@ export const test = base.extend<Options & Fixtures>({
     });
     await use(new AdminApi(request));
     await request.dispose();
+  },
+
+  anonymousRequest: async ({ playwright }, use) => {
+    const request = await playwright.request.newContext({ baseURL });
+    await use(request);
+    await request.dispose();
+  },
+
+  evaluationApi: async ({ anonymousRequest }, use) => {
+    await use(new EvaluationApi(anonymousRequest));
   },
 });
 
