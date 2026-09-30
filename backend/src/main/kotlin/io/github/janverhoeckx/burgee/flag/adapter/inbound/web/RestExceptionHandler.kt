@@ -13,8 +13,4 @@ class RestExceptionHandler {
         val fieldErrors = ex.bindingResult.fieldErrors.associate { it.field to it.defaultMessage }
         return validationFailed(fieldErrors)
     }
-
-    @ExceptionHandler(InvalidEvaluationContextException::class)
-    fun handleInvalidEvaluationContext(ex: InvalidEvaluationContextException): ResponseEntity<ApiError> =
-        validationFailed(ex.fieldErrors)
 }

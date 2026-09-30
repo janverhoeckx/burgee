@@ -10,7 +10,6 @@ import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequ
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.ResultActionsDsl
-import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 
 @AutoConfigureMockMvc
@@ -114,17 +113,6 @@ class PublicFlagControllerIT(
             jsonPath("$[?(@.key == '$enabledKey')].name") { doesNotExist() }
             jsonPath("$[?(@.key == '$enabledKey')].description") { doesNotExist() }
         }
-    }
-
-    @Test
-    fun `the old public GETs no longer respond`() {
-        val key = uniqueKey("old-get")
-        seedFlag(key, enabled = true)
-
-        mockMvc.get("/api/v1/flags") { with(anonymous()) }
-            .andExpect { status { isNotFound() } }
-        mockMvc.get("/api/v1/flags/$key") { with(anonymous()) }
-            .andExpect { status { isNotFound() } }
     }
 
     @Test

@@ -1,8 +1,8 @@
 package io.github.janverhoeckx.burgee.flag.adapter.inbound.web
 
 import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
+import io.github.janverhoeckx.burgee.flag.domain.Parsed
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.catchThrowableOfType
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
 
@@ -14,19 +14,18 @@ class EvaluationDtosTest {
         EvaluateRequest(attributes.associate { (name, json) -> name to mapper.readTree(json) })
 
     private fun fieldErrors(request: EvaluateRequest) =
-        catchThrowableOfType(InvalidEvaluationContextException::class.java) { request.toEvaluationContext() }
-            .fieldErrors
+        (request.toEvaluationContext() as Parsed.Invalid).violations
 
     @Test
     fun `string values become the Evaluation Context`() {
         assertThat(request("organisationId" to "\"acme\"", "country" to "\"nl\"").toEvaluationContext())
-            .isEqualTo(EvaluationContext(mapOf("organisationId" to "acme", "country" to "nl")))
+            .isEqualTo(Parsed.Valid(EvaluationContext(mapOf("organisationId" to "acme", "country" to "nl"))))
     }
 
     @Test
     fun `a missing body or missing attributes is an empty context`() {
-        assertThat((null as EvaluateRequest?).toEvaluationContext()).isEqualTo(EvaluationContext(emptyMap()))
-        assertThat(EvaluateRequest().toEvaluationContext()).isEqualTo(EvaluationContext(emptyMap()))
+        assertThat((null as EvaluateRequest?).toEvaluationContext()).isEqualTo(Parsed.Valid(EvaluationContext(emptyMap())))
+        assertThat(EvaluateRequest().toEvaluationContext()).isEqualTo(Parsed.Valid(EvaluationContext(emptyMap())))
     }
 
     @Test

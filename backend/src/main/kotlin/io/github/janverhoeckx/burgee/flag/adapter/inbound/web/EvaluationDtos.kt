@@ -2,7 +2,7 @@ package io.github.janverhoeckx.burgee.flag.adapter.inbound.web
 
 import io.github.janverhoeckx.burgee.flag.domain.Evaluation
 import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
-import io.github.janverhoeckx.burgee.flag.domain.getOrElse
+import io.github.janverhoeckx.burgee.flag.domain.Parsed
 import tools.jackson.databind.JsonNode
 
 /**
@@ -21,20 +21,16 @@ data class EvaluationResponse(
 
 fun Evaluation.toResponse() = EvaluationResponse(key = flagKey, enabled = result)
 
-class InvalidEvaluationContextException(val fieldErrors: Map<String, String>) :
-    RuntimeException("Invalid evaluation context")
-
 /**
  * Turns the submitted Attributes into an Evaluation Context. A missing body or missing `attributes`
  * is an empty context. Values that are not JSON strings are rejected here; every other rule is the
  * domain's (see [EvaluationContext.parse]).
  */
-fun EvaluateRequest?.toEvaluationContext(): EvaluationContext {
+fun EvaluateRequest?.toEvaluationContext(): Parsed<EvaluationContext> {
     val nodes = this?.attributes.orEmpty()
     val notStrings = nodes.filterValues { it == null || !it.isString }
     if (notStrings.isNotEmpty()) {
-        throw InvalidEvaluationContextException(notStrings.keys.associate { "attributes.$it" to "must be a string" })
+        return Parsed.Invalid(notStrings.keys.associate { "attributes.$it" to "must be a string" })
     }
-    val attributes = nodes.mapValues { (_, node) -> node!!.asString() }
-    return EvaluationContext.parse(attributes).getOrElse { throw InvalidEvaluationContextException(it) }
+    return EvaluationContext.parse(nodes.mapValues { (_, node) -> node!!.asString() })
 }

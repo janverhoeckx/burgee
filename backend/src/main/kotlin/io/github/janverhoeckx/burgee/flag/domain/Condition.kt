@@ -9,10 +9,6 @@ enum class ConditionOperator {
     }
 }
 
-/**
- * One requirement in a Targeting Rule: an Attribute name, an operator and a list of values.
- * A Condition whose Attribute is missing from the Evaluation Context does not match.
- */
 @ConsistentCopyVisibility
 data class Condition private constructor(
     val attribute: String,

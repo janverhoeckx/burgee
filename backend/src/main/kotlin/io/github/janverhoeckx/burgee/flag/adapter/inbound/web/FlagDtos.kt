@@ -49,15 +49,14 @@ data class CreateFeatureFlagRequest(
 
     val enabled: Boolean = false,
 
-    /** The Targeting Rule. Optional; defaults to no Conditions (on for everyone when enabled). */
-    val conditions: List<ConditionDto> = emptyList(),
+    val conditions: List<ConditionDto?> = emptyList(),
 ) {
     fun toCommand() = CreateFlagUseCase.Command(
         key = key,
         name = name,
         description = description,
         enabled = enabled,
-        conditions = conditions.map { it.toInput() },
+        conditions = conditions.map { it?.toInput() },
     )
 }
 
@@ -71,15 +70,14 @@ data class UpdateFeatureFlagRequest(
 
     val enabled: Boolean,
 
-    /** The new Targeting Rule. Replaces the current one entirely; omitting it clears all Conditions. */
-    val conditions: List<ConditionDto> = emptyList(),
+    val conditions: List<ConditionDto?> = emptyList(),
 ) {
     fun toCommand(id: UUID) = UpdateFlagUseCase.Command(
         id = id,
         name = name,
         description = description,
         enabled = enabled,
-        conditions = conditions.map { it.toInput() },
+        conditions = conditions.map { it?.toInput() },
     )
 }
 

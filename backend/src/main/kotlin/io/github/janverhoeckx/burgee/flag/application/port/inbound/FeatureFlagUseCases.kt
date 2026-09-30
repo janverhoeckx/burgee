@@ -25,8 +25,7 @@ interface CreateFlagUseCase {
         val name: String,
         val description: String?,
         val enabled: Boolean,
-        /** The Targeting Rule, as raw input; validated by the use case. */
-        val conditions: List<Condition.Input> = emptyList(),
+        val conditions: List<Condition.Input?> = emptyList(),
     )
 
     sealed interface Result {
@@ -43,8 +42,7 @@ interface UpdateFlagUseCase {
         val name: String,
         val description: String?,
         val enabled: Boolean,
-        /** The new Targeting Rule, as raw input; replaces the current one entirely. */
-        val conditions: List<Condition.Input> = emptyList(),
+        val conditions: List<Condition.Input?> = emptyList(),
     )
 
     sealed interface Result {

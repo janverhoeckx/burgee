@@ -16,7 +16,6 @@ import org.springframework.test.web.servlet.get
 import org.springframework.test.web.servlet.post
 import org.springframework.test.web.servlet.put
 
-/** Targeting Rules end to end: admin API round-trips and their effect on the public evaluate API. */
 @AutoConfigureMockMvc
 class TargetingRuleIT(
     private val mockMvc: MockMvc,
@@ -324,6 +323,22 @@ class TargetingRuleIT(
                     value("must not be blank and be at most 256 characters")
                 }
             }
+    }
+
+    @Test
+    fun `admin create rejects a null Condition with a field error`() {
+        expectCreateRejected("[null]", "conditions[0]", "must not be null")
+    }
+
+    @Test
+    fun `admin update rejects a null Condition with a field error`() {
+        val id = createAndExtractId(uniqueKey("update-null-condition"))
+
+        updateFlag(id, """{"name":"renamed","enabled":true,"conditions":[null]}""").andExpect {
+            status { isBadRequest() }
+            jsonPath("$.message") { value("Validation failed") }
+            jsonPath("$.fieldErrors['conditions[0]']") { value("must not be null") }
+        }
     }
 
     @Test

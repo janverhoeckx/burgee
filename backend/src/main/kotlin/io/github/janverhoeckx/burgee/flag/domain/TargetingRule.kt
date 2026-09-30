@@ -22,12 +22,16 @@ data class TargetingRule(val conditions: List<Condition> = emptyList()) {
          * Validates raw Condition input. On failure, every violation is reported, keyed by its path
          * on the flag (e.g. `conditions[1].values[0]`).
          */
-        fun parse(inputs: List<Condition.Input>): Parsed<TargetingRule> {
+        fun parse(inputs: List<Condition.Input?>): Parsed<TargetingRule> {
             val violations = linkedMapOf<String, String>()
             val conditions = mutableListOf<Condition>()
-            val duplicates = duplicateAttributes(inputs.map { it.attribute })
+            val duplicates = duplicateAttributes(inputs.map { it?.attribute })
             inputs.forEachIndexed { index, input ->
                 val path = "conditions[$index]"
+                if (input == null) {
+                    violations[path] = "must not be null"
+                    return@forEachIndexed
+                }
                 when (val parsed = Condition.parse(input)) {
                     is Parsed.Valid -> conditions += parsed.value
                     is Parsed.Invalid -> parsed.violations.forEach { (field, message) -> violations["$path.$field"] = message }

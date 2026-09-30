@@ -19,7 +19,7 @@ class TargetingRuleTest {
         )
     }
 
-    private fun violations(vararg inputs: Condition.Input) =
+    private fun violations(vararg inputs: Condition.Input?) =
         (TargetingRule.parse(inputs.toList()) as Parsed.Invalid).violations
 
     @Test
@@ -99,6 +99,18 @@ class TargetingRuleTest {
     fun `two Conditions without an attribute are not reported as duplicates`() {
         assertThat(violations(input(attribute = null), input(attribute = null)).values)
             .containsOnly("must match ^[A-Za-z][A-Za-z0-9_.-]*$ and be at most 64 characters")
+    }
+
+    @Test
+    fun `a null Condition is reported at its index, alongside other violations, and never as a duplicate`() {
+        assertThat(violations(input(), null, input(values = emptyList()), null)).containsExactlyInAnyOrderEntriesOf(
+            mapOf(
+                "conditions[1]" to "must not be null",
+                "conditions[2].values" to "must contain at least one value",
+                "conditions[2].attribute" to "duplicate attribute 'organisationId'",
+                "conditions[3]" to "must not be null",
+            ),
+        )
     }
 
     private val orgIn = Condition.of("organisationId", ConditionOperator.IN, listOf("acme", "globex"))
