@@ -55,6 +55,14 @@ Schema changes go in a new Flyway migration `backend/src/main/resources/db/migra
 
 Configuration lives in `application.yml`: env vars map to `burgee.*` properties, and the full table is in README.md.
 
+## Code conventions (from PR review)
+
+- No comments that repeat the code, the name or the type. Don't add KDoc to DTOs, Rows, commands, fields or tests that are obvious from their names. Keep a comment only when it explains a non-obvious *why*.
+- Expected failures travel as sealed `Result` / `Parsed` values from the use case or DTO to the controller, and the controller maps them to an `ApiError` (`validationFailed`, `notFound`). Don't throw custom exceptions to reach `RestExceptionHandler`; that handler is only for framework exceptions such as bean-validation errors.
+- Every malformed request body must get a 400 `ApiError` with `fieldErrors`, never a 500 or an empty 400. jackson-module-kotlin doesn't null-check list elements and rejects nulls in non-null fields before our validation runs. So request DTOs declare list elements and nested fields nullable (`List<ConditionDto?>`), and the domain parse reports the `null` as a violation.
+- Name types after what they are, not after one of their callers. A generic type used across several concepts gets a generic name.
+- Only test behaviour a user or client relies on. Don't add tests whose only job is to show something removed stays gone.
+
 ## Backend testing conventions
 
 - Unit tests use **MockK** + AssertJ, with a fixed `java.time.Clock` injected into services.
