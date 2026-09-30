@@ -47,6 +47,17 @@ export class FlagFormPage {
     await this.save.click();
   }
 
+  /** Fills the new-flag form without saving it. Filling the name after the key marks the key as touched. */
+  async fillNew(flag: NewFlag): Promise<void> {
+    await this.key.fill(flag.key);
+    await this.fill(flag);
+  }
+
+  /** A validation or save error shown in the form. */
+  error(message: string): Locator {
+    return this.page.getByText(message);
+  }
+
   /** Changes the given fields of a loaded edit form and saves it. */
   async update(fields: FlagFields): Promise<void> {
     await this.fill(fields);
