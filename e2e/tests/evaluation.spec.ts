@@ -1,9 +1,7 @@
 import { expect, test } from '../fixtures';
 import { uniqueKey } from '../support/unique-key';
 
-// Changes made in the dashboard reach applications through Evaluation. The flags here have no
-// Conditions and every Evaluation uses an empty Evaluation Context, so the result is the flag's
-// Enabled switch (ADR 0002). Targeting Rules have their own journey.
+// Without Conditions the Evaluation result is the flag's Enabled switch (ADR 0002); targeting.spec.ts covers Conditions.
 test.describe('evaluation', () => {
   test('a flag created as enabled in the dashboard evaluates as enabled', async ({
     page,

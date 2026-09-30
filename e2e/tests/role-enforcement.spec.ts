@@ -1,5 +1,5 @@
 import { expect, test } from '../fixtures';
-import { uniqueUsername } from '../support/unique-username';
+import { uniqueKey } from '../support/unique-key';
 
 // Signs in as a freshly provisioned New user instead of the Bootstrap admin.
 test.use({ signedIn: false });
@@ -12,7 +12,7 @@ test.describe('role enforcement', () => {
     flagsListPage,
     usersListPage,
   }) => {
-    const username = uniqueUsername('new');
+    const username = uniqueKey('new');
     const password = `pw-${username}`;
     await adminApi.users.create({ subject: username, role: 'NEW', password });
 

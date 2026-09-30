@@ -1,7 +1,6 @@
 import type { APIRequestContext } from '@playwright/test';
 import { json, ok } from './http';
 
-/** Mirrors `FeatureFlagResponse` / `ConditionDto` in the backend's `FlagDtos.kt`. */
 export interface Condition {
   attribute: string;
   operator: 'IN';
@@ -19,7 +18,7 @@ export interface FeatureFlag {
   conditions: Condition[];
 }
 
-/** Mirrors `CreateFeatureFlagRequest`; the backend defaults `enabled` to false and `conditions` to none. */
+/** The backend defaults `enabled` to false and `conditions` to none. */
 export interface CreateFlag {
   key: string;
   name: string;
@@ -28,7 +27,7 @@ export interface CreateFlag {
   conditions?: Condition[];
 }
 
-/** Mirrors `UpdateFeatureFlagRequest`. A PUT replaces the Targeting Rule, so omitted `conditions` clears it. */
+/** A PUT replaces the Targeting Rule, so omitted `conditions` clears it. */
 export interface UpdateFlag {
   name: string;
   description?: string | null;
@@ -36,7 +35,6 @@ export interface UpdateFlag {
   conditions?: Condition[];
 }
 
-/** `/api/admin/flags`. Every call throws on a non-2xx response, so a failed precondition fails loudly. */
 export class FlagsApi {
   private readonly base = '/api/admin/flags';
 

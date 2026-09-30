@@ -1,5 +1,3 @@
-# Throwaway stack for the Playwright suite: the production image on an empty, in-memory Postgres.
-# Started and stopped by global-setup.ts / global-teardown.ts under the project name `burgee-e2e`.
 services:
   postgres:
     image: postgres:16-alpine
@@ -29,7 +27,7 @@ services:
       BURGEE_AUTH_METHOD: basic
       BURGEE_ADMIN_USERNAME: admin
       BURGEE_ADMIN_PASSWORD: admin
-    # Reuses the image's HEALTHCHECK command, just polled faster so `up --wait` returns quickly.
+    # Keeps the image's HEALTHCHECK command, polled faster so `up --wait` returns quickly.
     healthcheck:
       interval: 2s
       start_period: 120s

@@ -31,7 +31,6 @@ export class FlagsListPage {
     await toggled;
   }
 
-  /** Opens the flag's own Audit trail. */
   async history(key: string): Promise<void> {
     await this.row(key).getByRole('button', { name: 'History' }).click();
   }
@@ -40,12 +39,10 @@ export class FlagsListPage {
     await this.row(key).getByRole('button', { name: 'Edit' }).click();
   }
 
-  /** Accepts the confirmation and returns its message. */
   async delete(key: string): Promise<string> {
     return this.deleteAnswering(key, true);
   }
 
-  /** Declines the confirmation and returns its message. */
   async deleteButDecline(key: string): Promise<string> {
     return this.deleteAnswering(key, false);
   }

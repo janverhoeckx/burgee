@@ -2,7 +2,7 @@ import { expect, test } from '../fixtures';
 import { baseURL } from '../env';
 import { FlagsListPage } from '../pages/flags-list-page';
 import { LoginPage } from '../pages/login-page';
-import { uniqueUsername } from '../support/unique-username';
+import { uniqueKey } from '../support/unique-key';
 
 test.describe('user management', () => {
   test('an admin creates a user who can then sign in with that password', async ({
@@ -11,7 +11,7 @@ test.describe('user management', () => {
     usersListPage,
     userFormPage,
   }) => {
-    const username = uniqueUsername('created');
+    const username = uniqueKey('created');
     const password = `pw-${username}`;
     const row = usersListPage.row(username);
 
@@ -46,7 +46,7 @@ test.describe('user management', () => {
 
   test("changing a user's role survives a reload", async ({ page, adminApi, usersListPage, userFormPage }) => {
     const user = await adminApi.users.create({
-      subject: uniqueUsername('role'),
+      subject: uniqueKey('role'),
       displayName: 'Role change',
       role: 'NEW',
       password: 'secret',
@@ -74,7 +74,7 @@ test.describe('user management', () => {
     adminApi,
     usersListPage,
   }) => {
-    const user = await adminApi.users.create({ subject: uniqueUsername('delete'), role: 'NEW' });
+    const user = await adminApi.users.create({ subject: uniqueKey('delete'), role: 'NEW' });
 
     await usersListPage.goto();
     const message = await usersListPage.delete(user.subject);

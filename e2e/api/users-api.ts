@@ -1,13 +1,10 @@
 import type { APIRequestContext } from '@playwright/test';
 import { json, ok } from './http';
 
-/** Mirrors `Role` in the backend's `user/domain/Role.kt`. */
 export type Role = 'ADMIN' | 'USER' | 'NEW';
 
-/** Mirrors `IdentityProvider`; in the e2e stack's basic auth mode the backend defaults to `BASIC`. */
 export type IdentityProvider = 'BASIC' | 'JWT';
 
-/** Mirrors `UserResponse` in the backend's `UserDtos.kt`. The password hash is never returned. */
 export interface User {
   id: string;
   subject: string;
@@ -19,10 +16,7 @@ export interface User {
   updatedAt: string;
 }
 
-/**
- * Mirrors `CreateUserRequest`. `subject` is the username in basic auth; the backend defaults `role` to
- * `USER` and `provider` to the running auth method. Without a `password` a basic-auth User can't sign in.
- */
+/** The backend defaults `role` to `USER`. Without a `password` a basic-auth User can't sign in. */
 export interface CreateUser {
   subject: string;
   email?: string | null;
@@ -32,10 +26,7 @@ export interface CreateUser {
   password?: string | null;
 }
 
-/**
- * Mirrors `UpdateUserRequest`. A PUT replaces `email` and `displayName`, so omitting them clears them;
- * an omitted or blank `password` keeps the current one. The subject can't change.
- */
+/** A PUT clears an omitted `email` or `displayName`; an omitted `password` keeps the current one. */
 export interface UpdateUser {
   email?: string | null;
   displayName?: string | null;
@@ -43,7 +34,6 @@ export interface UpdateUser {
   password?: string | null;
 }
 
-/** `/api/admin/users`. Every call throws on a non-2xx response, so a failed precondition fails loudly. */
 export class UsersApi {
   private readonly base = '/api/admin/users';
 

@@ -38,14 +38,12 @@ export class UserFormPage {
     await this.page.goto('/users/new');
   }
 
-  /** Fills the new-user form and saves it. */
   async createUser(user: NewUser): Promise<void> {
     await this.username.fill(user.username);
     await this.fill(user);
     await this.save.click();
   }
 
-  /** Changes the given fields of a loaded edit form and saves it. */
   async update(fields: UserFields): Promise<void> {
     await this.fill(fields);
     await this.save.click();

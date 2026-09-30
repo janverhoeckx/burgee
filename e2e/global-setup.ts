@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process';
 import { composeArgs, e2eEnv } from './env';
 
-// `up --wait` returns once the image's HEALTHCHECK reports healthy, which is also what the published image promises.
+// Waits on the image's own HEALTHCHECK, so a broken health check fails the suite too.
 export default async function globalSetup(): Promise<void> {
   const up = ['up', '-d', '--wait', '--wait-timeout', '180', ...(e2eEnv.noBuild ? [] : ['--build'])];
   try {

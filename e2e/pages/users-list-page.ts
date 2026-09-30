@@ -21,7 +21,6 @@ export class UsersListPage {
     return this.page.getByRole('row').filter({ hasText: username });
   }
 
-  /** The user's Role badge, e.g. `role(username, 'ADMIN')`; it has no count when the user holds another Role. */
   role(username: string, role: Role): Locator {
     return this.row(username).getByRole('cell', { name: role, exact: true });
   }
@@ -30,7 +29,6 @@ export class UsersListPage {
     await this.row(username).getByRole('button', { name: 'Edit' }).click();
   }
 
-  /** Accepts the confirmation and returns its message. */
   async delete(username: string): Promise<string> {
     const answered = this.page.waitForEvent('dialog').then(async (dialog) => {
       await dialog.accept();

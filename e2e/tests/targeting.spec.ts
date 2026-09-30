@@ -1,8 +1,6 @@
 import { expect, test } from '../fixtures';
 import { uniqueKey } from '../support/unique-key';
 
-// Conditions are set through the dashboard; Evaluation goes through the public API without credentials,
-// as a client application calls it. The semantics under test are ADR 0002: `enabled AND every Condition matches`.
 test.describe('targeting rule', () => {
   test('a Condition set in the dashboard decides the Evaluation per Attribute value', async ({
     page,

@@ -20,9 +20,7 @@ export class FlagFormPage {
   readonly save: Locator;
   readonly cancel: Locator;
   readonly newCondition: Locator;
-  /** Every Condition's Attribute input, in Targeting Rule order. */
   readonly conditionAttributes: Locator;
-  /** Every Condition's values textarea (one value per line), in Targeting Rule order. */
   readonly conditionValues: Locator;
 
   constructor(private readonly page: Page) {
@@ -38,45 +36,37 @@ export class FlagFormPage {
     this.conditionValues = page.getByLabel('Values (one per line)', { exact: true });
   }
 
-  /** Returns the document response, so a deep-link journey can check what the server sent. */
   async gotoNew(): Promise<Response | null> {
     return this.page.goto('/flags/new');
   }
 
-  /**
-   * Resolves once the flag has loaded (the form then disables Key), so the late load can't overwrite edits.
-   * Returns the document response, so a deep-link journey can check what the server sent.
-   */
+  /** Waits until the flag has loaded (Key turns disabled), so the late load can't overwrite edits. */
   async gotoEdit(id: string): Promise<Response | null> {
     const response = await this.page.goto(`/flags/${id}/edit`);
     await this.page.getByRole('textbox', { name: 'Key', exact: true, disabled: true }).waitFor();
     return response;
   }
 
-  /** Fills the new-flag form and saves it. */
   async createFlag(flag: NewFlag): Promise<void> {
     await this.fillNew(flag);
     await this.save.click();
   }
 
-  /** Fills the new-flag form without saving it. Filling the name after the key marks the key as touched. */
+  /** Filling the name after the key marks the key as touched, which shows its validation error. */
   async fillNew(flag: NewFlag): Promise<void> {
     await this.key.fill(flag.key);
     await this.fill(flag);
   }
 
-  /** A validation or save error shown in the form. */
   error(message: string): Locator {
     return this.page.getByText(message);
   }
 
-  /** Changes the given fields of a loaded edit form and saves it. */
   async update(fields: FlagFields): Promise<void> {
     await this.fill(fields);
     await this.save.click();
   }
 
-  /** Appends the Condition `attribute IN values` to the Targeting Rule, without saving. */
   async addCondition(attribute: string, values: string[]): Promise<void> {
     // The new row renders asynchronously, so address it by index (`last()` could still be the previous row).
     const index = await this.conditionAttributes.count();
@@ -85,7 +75,6 @@ export class FlagFormPage {
     await this.conditionValues.nth(index).fill(values.join('\n'));
   }
 
-  /** Removes the Condition on the given Attribute, without saving. */
   async removeCondition(attribute: string): Promise<void> {
     const attributes = await this.conditionAttributes.all();
     for (const [index, input] of attributes.entries()) {
@@ -97,7 +86,7 @@ export class FlagFormPage {
     throw new Error(`No Condition on Attribute "${attribute}" in the form`);
   }
 
-  /** Removes every Condition, last first so the remaining buttons keep their names, without saving. */
+  /** Last first, so the remaining remove buttons keep their names. */
   async clearConditions(): Promise<void> {
     for (let index = (await this.conditionAttributes.count()) - 1; index >= 0; index--) {
       await this.removeConditionButton(index).click();

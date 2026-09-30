@@ -2,8 +2,7 @@ import type { Response } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import { uniqueKey } from '../support/unique-key';
 
-// Every test opens its URL with `page.goto` as the first navigation, like a link pasted into a
-// fresh tab, so the backend's SPA fallback (`web/WebConfig`) must serve the dashboard for it.
+// `page.goto` as the first navigation is a cold load, so the backend's SPA fallback must serve the dashboard.
 test.describe('deep links', () => {
   test('opening the new-flag page cold shows an empty flag form', async ({ flagFormPage }) => {
     const response = await flagFormPage.gotoNew();
@@ -37,7 +36,6 @@ test.describe('deep links', () => {
   });
 });
 
-/** The server answered the deep link itself with the dashboard's HTML, not a 404 or an error page. */
 function expectDashboardDocument(response: Response | null): void {
   expect(response?.status()).toBe(200);
   expect(response?.headers()['content-type']).toContain('text/html');

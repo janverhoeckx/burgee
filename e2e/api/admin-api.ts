@@ -2,10 +2,6 @@ import type { APIRequestContext } from '@playwright/test';
 import { FlagsApi } from './flags-api';
 import { UsersApi } from './users-api';
 
-/**
- * The admin API, called as the Bootstrap admin, for setting up preconditions without the UI.
- * One property per resource.
- */
 export class AdminApi {
   readonly flags: FlagsApi;
   readonly users: UsersApi;

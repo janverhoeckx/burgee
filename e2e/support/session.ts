@@ -17,7 +17,6 @@ interface SavedSession {
   value: string;
 }
 
-/** Saves the signed-in page's credentials entry for later tests. */
 export async function saveSession(page: Page): Promise<void> {
   const value = await page.evaluate((key) => sessionStorage.getItem(key), STORAGE_KEY);
   if (value === null) throw new Error(`No "${STORAGE_KEY}" entry in sessionStorage: is the page signed in?`);
@@ -25,7 +24,6 @@ export async function saveSession(page: Page): Promise<void> {
   writeFileSync(sessionFile, JSON.stringify({ key: STORAGE_KEY, value } satisfies SavedSession));
 }
 
-/** Writes the saved credentials into sessionStorage before every page load on the app's origin. */
 export async function restoreSession(context: BrowserContext): Promise<void> {
   const session = JSON.parse(readFileSync(sessionFile, 'utf8')) as SavedSession;
   await context.addInitScript(

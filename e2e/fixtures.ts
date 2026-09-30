@@ -11,7 +11,6 @@ import { UsersListPage } from './pages/users-list-page';
 import { restoreSession } from './support/session';
 
 type Options = {
-  /** Start signed in as the Bootstrap admin (the default); `test.use({ signedIn: false })` starts signed out. */
   signedIn: boolean;
 };
 
@@ -23,7 +22,6 @@ type Fixtures = {
   usersListPage: UsersListPage;
   userFormPage: UserFormPage;
   adminApi: AdminApi;
-  /** A request context with no credentials, as an application calling the public API has. */
   anonymousRequest: APIRequestContext;
   evaluationApi: EvaluationApi;
 };
