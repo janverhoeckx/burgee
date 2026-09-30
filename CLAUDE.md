@@ -76,6 +76,15 @@ Configuration lives in `application.yml`: env vars map to `burgee.*` properties,
 
 A standalone-component Angular app. `src/app/core/` holds the HTTP services, guards and the auth interceptor. `src/app/pages/` holds routed pages, with routes in `app.routes.ts`. `AuthService` asks `/api/auth/info` which mode the backend runs in. In basic mode it stores the Basic credentials in storage. In jwt mode it runs a PKCE login with `oidc-client-ts` using the OIDC config the backend returns. `auth.interceptor` adds the matching `Authorization` header. The API base URL is same-origin by default and can be overridden with `window.__burgeeConfig.apiBaseUrl`. Specs sit next to the files they test (`*.spec.ts`) and run on vitest + jsdom.
 
+## E2E testing conventions
+
+- Run the e2e suite when you touch the dashboard, security or web config.
+- The DB lives for the whole run and tests run `fullyParallel`, so every test makes its own Key with `uniqueKey('prefix')` from `support/unique-key.ts`.
+- Set up preconditions through the `adminApi` fixture (`adminApi.flags.create(...)`). Use the UI only for the behaviour under test.
+- Page Objects live in `pages/`, hold locators and intent methods (`createFlag`, `toggle(key)`, `delete(key)`), contain no assertions, and are injected as fixtures from `fixtures.ts`.
+- Locators use roles, labels and text only. Find a flag's row with `getByRole('row').filter({ hasText: key })`. No `data-testid`. When an element has no accessible name, add one to the markup (as with the `Toggle <key>` checkbox).
+- The SPA keeps basic auth in sessionStorage, which `storageState` skips. The `setup` project (`tests/auth.setup.ts`) signs in once and saves that entry to `.auth/`, and the `context` fixture restores it with `addInitScript`. Tests start signed in; `test.use({ signedIn: false })` starts signed out (only the login journey).
+
 ## Agent skills
 
 ### Issue tracker

@@ -16,9 +16,16 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
+    // Signs in once through the login page; see support/session.ts for how later tests reuse it.
+    {
+      name: 'setup',
+      testMatch: /.*\.setup\.ts/,
+      use: { ...devices['Desktop Chrome'] },
+    },
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
     },
   ],
 });

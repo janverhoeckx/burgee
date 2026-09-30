@@ -3,6 +3,9 @@ import { e2eEnv } from '../env';
 
 const { admin } = e2eEnv;
 
+// The one journey that goes through the login page, so it starts without the saved session.
+test.use({ signedIn: false });
+
 test.describe('login', () => {
   test('rejects a wrong password and stays on the login page', async ({ page, loginPage }) => {
     await loginPage.goto();
