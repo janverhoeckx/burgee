@@ -1,8 +1,8 @@
 # syntax=docker/dockerfile:1.7
 FROM node:22-alpine AS frontend-build
 WORKDIR /workspace
-COPY frontend/package.json ./
-RUN --mount=type=cache,target=/root/.npm npm install --no-audit --no-fund
+COPY frontend/package.json frontend/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY frontend/tsconfig.json frontend/tsconfig.app.json frontend/angular.json ./
 COPY frontend/src ./src
 RUN npx ng build --configuration production
