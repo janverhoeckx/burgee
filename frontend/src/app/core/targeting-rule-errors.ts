@@ -24,10 +24,13 @@ const CONDITION_FIELD = /^conditions\[(\d+)\]\.(attribute|values|operator)(?:\[(
 
 /**
  * Splits the backend's `fieldErrors` map into errors per Condition row and general errors.
- * A `values[j]` error is prefixed with the 1-based value number; a missing message reads "invalid".
+ * A `values[j]` error is prefixed with `Line <n>`, where `n` is `valueLines[i][j]`: the 1-based
+ * textarea line the sent value came from. Blank lines are not sent, so `j` alone would point at
+ * the wrong line; without a mapping entry it falls back to `j + 1`. A missing message reads "invalid".
  */
 export function parseConditionFieldErrors(
   fieldErrors: Record<string, string | null>,
+  valueLines: readonly (readonly number[])[] = [],
 ): ParsedFieldErrors {
   const conditions: Record<number, ConditionRowErrors> = {};
   const general: string[] = [];
@@ -42,7 +45,11 @@ export function parseConditionFieldErrors(
     const row = (conditions[+index] ??= { attribute: [], values: [], other: [] });
     if (part === 'attribute') row.attribute.push(text);
     else if (part === 'values')
-      row.values.push(valueIndex === undefined ? text : `Value ${+valueIndex + 1}: ${text}`);
+      row.values.push(
+        valueIndex === undefined
+          ? text
+          : `Line ${valueLines[+index]?.[+valueIndex] ?? +valueIndex + 1}: ${text}`,
+      );
     else row.other.push(text);
   }
   return { conditions, general };

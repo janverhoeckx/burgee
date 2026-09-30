@@ -54,22 +54,36 @@ export class FlagFormComponent implements OnInit {
     this.conditionErrors.set({});
   }
 
-  private showFieldErrors(fieldErrors: Record<string, string | null>): void {
-    const { conditions, general } = parseConditionFieldErrors(fieldErrors);
+  private showFieldErrors(
+    fieldErrors: Record<string, string | null>,
+    valueLines: readonly (readonly number[])[],
+  ): void {
+    const { conditions, general } = parseConditionFieldErrors(fieldErrors, valueLines);
     this.conditionErrors.set(conditions);
     this.fieldErrors.set(general);
   }
 
-  /** Turns editor rows into Conditions: values one per line, trimmed, empty lines dropped. */
-  private parseConditions(): Condition[] {
-    return this.conditions.getRawValue().map((row) => ({
-      attribute: row.attribute.trim(),
-      operator: ConditionOperator.In,
-      values: row.values
-        .split('\n')
-        .map((v) => v.trim())
-        .filter((v) => v.length > 0),
-    }));
+  /**
+   * Turns editor rows into Conditions: values one per line, trimmed, empty lines dropped.
+   * `valueLines[i][j]` is the 1-based textarea line of row i's j-th sent value, so backend
+   * errors on `values[j]` can name the line the user sees.
+   */
+  private parseConditions(): { conditions: Condition[]; valueLines: number[][] } {
+    const conditions: Condition[] = [];
+    const valueLines: number[][] = [];
+    for (const row of this.conditions.getRawValue()) {
+      const values: string[] = [];
+      const lines: number[] = [];
+      row.values.split('\n').forEach((line, i) => {
+        const value = line.trim();
+        if (value.length === 0) return;
+        values.push(value);
+        lines.push(i + 1);
+      });
+      conditions.push({ attribute: row.attribute.trim(), operator: ConditionOperator.In, values });
+      valueLines.push(lines);
+    }
+    return { conditions, valueLines };
   }
 
   private conditionRow(attribute = '', values = ''): ConditionRow {
@@ -107,7 +121,7 @@ export class FlagFormComponent implements OnInit {
     this.conditionErrors.set({});
     this.fieldErrors.set([]);
 
-    const conditions = this.parseConditions();
+    const { conditions, valueLines } = this.parseConditions();
     const id = this.id();
     const obs = id
       ? this.service.update(id, {
@@ -134,7 +148,7 @@ export class FlagFormComponent implements OnInit {
         if (err?.status === 409) this.error.set('A flag with this key already exists.');
         else if (err?.status === 400) {
           this.error.set('Validation failed. Check the fields.');
-          this.showFieldErrors(err.error?.fieldErrors ?? {});
+          this.showFieldErrors(err.error?.fieldErrors ?? {}, valueLines);
         }
         else this.error.set('Save failed.');
       },

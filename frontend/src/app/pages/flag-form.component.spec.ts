@@ -286,12 +286,38 @@ describe('FlagFormComponent', () => {
 
       const rows = conditionRows(el);
       expect(rows[0].querySelector('.condition-values-field .error')?.textContent).toContain(
-        'Value 2: must not be blank and be at most 256 characters',
+        'Line 2: must not be blank and be at most 256 characters',
       );
       expect(rows[1].querySelector('.condition-attribute-field .error')?.textContent).toContain(
         "duplicate attribute 'organisationId'",
       );
       expect(rows[0].querySelector('.condition-attribute-field .error')).toBeNull();
+    });
+
+    it('reports a value error with its original textarea line, counting dropped blank lines', async () => {
+      service.get.mockReturnValue(of(flag({ conditions: targeted })));
+      service.update.mockReturnValue(
+        throwError(() => ({
+          status: 400,
+          error: {
+            message: 'Validation failed',
+            fieldErrors: { 'conditions[0].values[1]': 'must be at most 256 characters' },
+          },
+        })),
+      );
+      setup();
+      await fixture.whenStable();
+      const el: HTMLElement = fixture.nativeElement;
+
+      type(conditionRows(el)[0], 'textarea.condition-values', `acme\n\n${'x'.repeat(300)}`);
+      await fixture.whenStable();
+      click(el, 'button[type="submit"]');
+      await fixture.whenStable();
+
+      expect(service.update.mock.calls[0][1].conditions[0].values).toEqual(['acme', 'x'.repeat(300)]);
+      expect(conditionRows(el)[0].querySelector('.condition-values-field .error')?.textContent).toContain(
+        'Line 3: must be at most 256 characters',
+      );
     });
 
     it('round-trips the existing Conditions plus edits on update', async () => {
