@@ -19,6 +19,11 @@ export class FlagFormPage {
   readonly enabled: Locator;
   readonly save: Locator;
   readonly cancel: Locator;
+  readonly newCondition: Locator;
+  /** Every Condition's Attribute input, in Targeting Rule order. */
+  readonly conditionAttributes: Locator;
+  /** Every Condition's values textarea (one value per line), in Targeting Rule order. */
+  readonly conditionValues: Locator;
 
   constructor(private readonly page: Page) {
     this.heading = page.getByRole('heading', { level: 1 });
@@ -28,6 +33,9 @@ export class FlagFormPage {
     this.enabled = page.getByLabel('Enabled', { exact: true });
     this.save = page.getByRole('button', { name: 'Save' });
     this.cancel = page.getByRole('button', { name: 'Cancel' });
+    this.newCondition = page.getByRole('button', { name: 'Add condition' });
+    this.conditionAttributes = page.getByLabel('Attribute', { exact: true });
+    this.conditionValues = page.getByLabel('Values (one per line)', { exact: true });
   }
 
   /** Returns the document response, so a deep-link journey can check what the server sent. */
@@ -35,9 +43,14 @@ export class FlagFormPage {
     return this.page.goto('/flags/new');
   }
 
-  /** Returns the document response, so a deep-link journey can check what the server sent. */
+  /**
+   * Resolves once the flag has loaded (the form then disables Key), so the late load can't overwrite edits.
+   * Returns the document response, so a deep-link journey can check what the server sent.
+   */
   async gotoEdit(id: string): Promise<Response | null> {
-    return this.page.goto(`/flags/${id}/edit`);
+    const response = await this.page.goto(`/flags/${id}/edit`);
+    await this.page.getByRole('textbox', { name: 'Key', exact: true, disabled: true }).waitFor();
+    return response;
   }
 
   /** Fills the new-flag form and saves it. */
@@ -62,6 +75,38 @@ export class FlagFormPage {
   async update(fields: FlagFields): Promise<void> {
     await this.fill(fields);
     await this.save.click();
+  }
+
+  /** Appends the Condition `attribute IN values` to the Targeting Rule, without saving. */
+  async addCondition(attribute: string, values: string[]): Promise<void> {
+    // The new row renders asynchronously, so address it by index (`last()` could still be the previous row).
+    const index = await this.conditionAttributes.count();
+    await this.newCondition.click();
+    await this.conditionAttributes.nth(index).fill(attribute);
+    await this.conditionValues.nth(index).fill(values.join('\n'));
+  }
+
+  /** Removes the Condition on the given Attribute, without saving. */
+  async removeCondition(attribute: string): Promise<void> {
+    const attributes = await this.conditionAttributes.all();
+    for (const [index, input] of attributes.entries()) {
+      if ((await input.inputValue()) === attribute) {
+        await this.removeConditionButton(index).click();
+        return;
+      }
+    }
+    throw new Error(`No Condition on Attribute "${attribute}" in the form`);
+  }
+
+  /** Removes every Condition, last first so the remaining buttons keep their names, without saving. */
+  async clearConditions(): Promise<void> {
+    for (let index = (await this.conditionAttributes.count()) - 1; index >= 0; index--) {
+      await this.removeConditionButton(index).click();
+    }
+  }
+
+  private removeConditionButton(index: number): Locator {
+    return this.page.getByRole('button', { name: `Remove condition ${index + 1}`, exact: true });
   }
 
   private async fill({ name, description, enabled }: FlagFields): Promise<void> {

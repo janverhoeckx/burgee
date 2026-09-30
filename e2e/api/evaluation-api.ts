@@ -1,4 +1,5 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
+import { json } from './flags-api';
 
 /** Mirrors `EvaluateRequest` in the backend's `EvaluationDtos.kt`: string Attributes only. */
 export interface EvaluationContext {
@@ -24,6 +25,15 @@ export class EvaluationApi {
   /** Evaluates one flag. Without a context the request has no body, which counts as an empty Evaluation Context. */
   async evaluate(key: string, context?: EvaluationContext): Promise<APIResponse> {
     return this.request.post(`${this.base}/${encodeURIComponent(key)}/evaluate`, { data: context });
+  }
+
+  /**
+   * The Evaluation result for the given Attributes; throws on a non-2xx response.
+   * Without Attributes the request has no body at all.
+   */
+  async isEnabled(key: string, attributes?: Record<string, string>): Promise<boolean> {
+    const response = await this.evaluate(key, attributes && { attributes });
+    return (await json<Evaluation>(response)).enabled;
   }
 
   /** Evaluates every flag. */
