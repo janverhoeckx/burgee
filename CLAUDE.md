@@ -31,6 +31,15 @@ npm test -- --watch=false --include src/app/core/flag.service.spec.ts
 npm run build
 ```
 
+End-to-end (run from `e2e/`, needs Docker; see README for the env vars):
+
+```bash
+npm run e2e                                # build the production image, start it on :18080 with a fresh Postgres, run Playwright, tear down
+npx playwright test tests/login.spec.ts    # one spec file
+E2E_NO_BUILD=1 E2E_KEEP_STACK=1 npm run e2e  # reuse the last image and leave the stack up for debugging
+npm run typecheck
+```
+
 CI: `.github/workflows/pr-build.yml` runs backend `./mvnw verify` (unit + integration tests) and the frontend tests on pull requests to `main`. `.github/workflows/master-builder.yml` runs the same tests on pushes to `main`, then builds and pushes a multi-arch image to GHCR.
 
 ## Backend architecture
