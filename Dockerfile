@@ -22,5 +22,5 @@ COPY --from=backend-build /workspace/target/*.jar /app/burgee.jar
 USER burgee
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-  CMD wget -q --spider http://localhost:8080/actuator/health/liveness || exit 1
+  CMD ["bash", "-c", "exec 3<>/dev/tcp/localhost/8080 && printf 'GET /actuator/health/liveness HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
 ENTRYPOINT ["java", "-jar", "/app/burgee.jar"]

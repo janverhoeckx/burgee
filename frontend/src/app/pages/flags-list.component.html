@@ -57,6 +57,7 @@
             <input
               type="checkbox"
               class="toggle"
+              [attr.aria-label]="'Toggle ' + flag.key"
               [checked]="flag.enabled"
               [disabled]="busy().has(flag.id)"
               (change)="toggle(flag)"

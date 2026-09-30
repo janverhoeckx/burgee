@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: burgee
+      POSTGRES_USER: burgee
+      POSTGRES_PASSWORD: burgee
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U burgee -d burgee"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  burgee:
+    image: ${E2E_IMAGE:-burgee:e2e}
+    build:
+      context: ..
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/burgee
+      DB_USERNAME: burgee
+      DB_PASSWORD: burgee
+      BURGEE_AUTH_METHOD: basic
+      BURGEE_ADMIN_USERNAME: admin
+      BURGEE_ADMIN_PASSWORD: admin
+    # Keeps the image's HEALTHCHECK command, polled faster so `up --wait` returns quickly.
+    healthcheck:
+      interval: 2s
+      start_period: 120s
+      start_interval: 1s
+    ports:
+      - "${E2E_PORT:-18080}:8080"
