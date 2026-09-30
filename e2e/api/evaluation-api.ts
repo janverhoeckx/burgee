@@ -1,5 +1,5 @@
 import type { APIRequestContext, APIResponse } from '@playwright/test';
-import { json } from './flags-api';
+import { json } from './http';
 
 /** Mirrors `EvaluateRequest` in the backend's `EvaluationDtos.kt`: string Attributes only. */
 export interface EvaluationContext {

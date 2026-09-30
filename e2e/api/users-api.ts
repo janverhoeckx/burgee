@@ -1,5 +1,5 @@
 import type { APIRequestContext } from '@playwright/test';
-import { json, ok } from './flags-api';
+import { json, ok } from './http';
 
 /** Mirrors `Role` in the backend's `user/domain/Role.kt`. */
 export type Role = 'ADMIN' | 'USER' | 'NEW';

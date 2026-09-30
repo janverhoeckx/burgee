@@ -4,7 +4,7 @@ import { UsersApi } from './users-api';
 
 /**
  * The admin API, called as the Bootstrap admin, for setting up preconditions without the UI.
- * One property per resource: add e.g. `users` next to `flags` when a journey needs it.
+ * One property per resource.
  */
 export class AdminApi {
   readonly flags: FlagsApi;

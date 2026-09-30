@@ -1,4 +1,5 @@
-import type { APIRequestContext, APIResponse } from '@playwright/test';
+import type { APIRequestContext } from '@playwright/test';
+import { json, ok } from './http';
 
 /** Mirrors `FeatureFlagResponse` / `ConditionDto` in the backend's `FlagDtos.kt`. */
 export interface Condition {
@@ -64,15 +65,4 @@ export class FlagsApi {
   async delete(id: string): Promise<void> {
     await ok(await this.request.delete(`${this.base}/${id}`));
   }
-}
-
-export async function ok(response: APIResponse): Promise<APIResponse> {
-  if (!response.ok()) {
-    throw new Error(`${response.status()} from ${response.url()}: ${await response.text()}`);
-  }
-  return response;
-}
-
-export async function json<T>(response: APIResponse): Promise<T> {
-  return (await ok(response)).json() as Promise<T>;
 }

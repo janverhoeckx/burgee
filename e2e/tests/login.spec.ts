@@ -3,7 +3,7 @@ import { e2eEnv } from '../env';
 
 const { admin } = e2eEnv;
 
-// The one journey that goes through the login page, so it starts without the saved session.
+// Exercises the login page itself, so it starts without the saved session.
 test.use({ signedIn: false });
 
 test.describe('login', () => {
@@ -15,7 +15,7 @@ test.describe('login', () => {
     await expect(page).toHaveURL(/\/login$/);
   });
 
-  test('signs the bootstrap admin in and lands on the flags list', async ({ page, loginPage }) => {
+  test('signs the Bootstrap admin in and lands on the flags list', async ({ page, loginPage }) => {
     await loginPage.goto();
     await loginPage.signIn(admin.username, admin.password);
 

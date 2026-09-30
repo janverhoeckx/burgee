@@ -55,8 +55,7 @@ export class FlagFormPage {
 
   /** Fills the new-flag form and saves it. */
   async createFlag(flag: NewFlag): Promise<void> {
-    await this.key.fill(flag.key);
-    await this.fill(flag);
+    await this.fillNew(flag);
     await this.save.click();
   }
 

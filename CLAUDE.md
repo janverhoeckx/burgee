@@ -40,7 +40,7 @@ E2E_NO_BUILD=1 E2E_KEEP_STACK=1 npm run e2e  # reuse the last image and leave th
 npm run typecheck
 ```
 
-CI: `.github/workflows/pr-build.yml` runs backend `./mvnw verify` (unit + integration tests) and the frontend tests on pull requests to `main`. `.github/workflows/master-builder.yml` runs the same tests on pushes to `main`, then builds and pushes a multi-arch image to GHCR.
+CI: `.github/workflows/pr-build.yml` runs backend `./mvnw verify` (unit + integration tests) and the frontend tests on pull requests to `main`. `.github/workflows/master-builder.yml` runs the same tests plus the e2e suite on pushes to `main`, and only then builds and pushes a multi-arch image to GHCR.
 
 ## Backend architecture
 
@@ -83,7 +83,7 @@ A standalone-component Angular app. `src/app/core/` holds the HTTP services, gua
 - Set up preconditions through the `adminApi` fixture (`adminApi.flags.create(...)`). Use the UI only for the behaviour under test.
 - Page Objects live in `pages/`, hold locators and intent methods (`createFlag`, `toggle(key)`, `delete(key)`), contain no assertions, and are injected as fixtures from `fixtures.ts`.
 - Locators use roles, labels and text only. Find a flag's row with `getByRole('row').filter({ hasText: key })`. No `data-testid`. When an element has no accessible name, add one to the markup (as with the `Toggle <key>` checkbox).
-- The SPA keeps basic auth in sessionStorage, which `storageState` skips. The `setup` project (`tests/auth.setup.ts`) signs in once and saves that entry to `.auth/`, and the `context` fixture restores it with `addInitScript`. Tests start signed in; `test.use({ signedIn: false })` starts signed out (only the login journey).
+- The SPA keeps basic auth in sessionStorage, which `storageState` skips. The `setup` project (`tests/auth.setup.ts`) signs in once and saves that entry to `.auth/`, and the `context` fixture restores it with `addInitScript`. Tests start signed in; `test.use({ signedIn: false })` starts signed out, for journeys that sign in themselves (login, role enforcement).
 
 ## Agent skills
 

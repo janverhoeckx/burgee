@@ -1,4 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
+import type { Role } from '../api/users-api';
 
 export class UsersListPage {
   readonly heading: Locator;
@@ -21,7 +22,7 @@ export class UsersListPage {
   }
 
   /** The user's Role badge, e.g. `role(username, 'ADMIN')`; it has no count when the user holds another Role. */
-  role(username: string, role: string): Locator {
+  role(username: string, role: Role): Locator {
     return this.row(username).getByRole('cell', { name: role, exact: true });
   }
 
