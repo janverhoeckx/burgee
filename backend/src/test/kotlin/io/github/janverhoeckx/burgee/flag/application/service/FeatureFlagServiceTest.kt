@@ -2,14 +2,20 @@ package io.github.janverhoeckx.burgee.flag.application.service
 
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.CreateFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.DeleteFlagUseCase
+import io.github.janverhoeckx.burgee.flag.application.port.inbound.EvaluateFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.GetFlagByIdUseCase
-import io.github.janverhoeckx.burgee.flag.application.port.inbound.GetFlagByKeyUseCase
+import io.github.janverhoeckx.burgee.flag.application.port.inbound.InvalidTargetingRule
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.ToggleFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.UpdateFlagUseCase
 import io.github.janverhoeckx.burgee.audit.application.port.inbound.RecordAuditEntryUseCase
 import io.github.janverhoeckx.burgee.audit.domain.AuditAction
 import io.github.janverhoeckx.burgee.flag.application.port.outbound.FeatureFlagRepositoryPort
+import io.github.janverhoeckx.burgee.flag.domain.Condition
+import io.github.janverhoeckx.burgee.flag.domain.ConditionOperator
+import io.github.janverhoeckx.burgee.flag.domain.Evaluation
+import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
 import io.github.janverhoeckx.burgee.flag.domain.FeatureFlag
+import io.github.janverhoeckx.burgee.flag.domain.TargetingRule
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -60,22 +66,6 @@ class FeatureFlagServiceTest {
 
         assertThat(service.getById(id))
             .isEqualTo(GetFlagByIdUseCase.Result.Found(existing))
-    }
-
-    @Test
-    fun `getByKey returns NotFound when missing`() {
-        every { repository.findByKey("missing") } returns null
-
-        assertThat(service.getByKey("missing"))
-            .isEqualTo(GetFlagByKeyUseCase.Result.NotFound)
-    }
-
-    @Test
-    fun `getByKey returns Found when present`() {
-        every { repository.findByKey("checkout-v2") } returns existing
-
-        assertThat(service.getByKey("checkout-v2"))
-            .isEqualTo(GetFlagByKeyUseCase.Result.Found(existing))
     }
 
     @Test
@@ -236,5 +226,250 @@ class FeatureFlagServiceTest {
         service.create(CreateFlagUseCase.Command("checkout-v2", "name", null, false))
 
         verify(exactly = 0) { auditTrail.record(any()) }
+    }
+
+    @Test
+    fun `evaluate returns NotFound for an unknown key`() {
+        every { repository.findByKey("missing") } returns null
+
+        assertThat(service.evaluate("missing", EvaluationContext(emptyMap())))
+            .isEqualTo(EvaluateFlagUseCase.Result.NotFound)
+    }
+
+    @Test
+    fun `evaluate returns the Evaluation of the flag with that key`() {
+        every { repository.findByKey("checkout-v2") } returns existing.copy(enabled = true)
+
+        assertThat(service.evaluate("checkout-v2", EvaluationContext(mapOf("organisationId" to "acme"))))
+            .isEqualTo(EvaluateFlagUseCase.Result.Evaluated(Evaluation("checkout-v2", true)))
+    }
+
+    @Test
+    fun `evaluateAll returns an Evaluation for every flag, including disabled ones`() {
+        val on = existing.copy(key = "a-on", enabled = true)
+        val off = existing.copy(key = "b-off", enabled = false)
+        every { repository.findAll() } returns listOf(on, off)
+
+        assertThat(service.evaluateAll(EvaluationContext(emptyMap())))
+            .containsExactly(Evaluation("a-on", true), Evaluation("b-off", false))
+    }
+
+    private val orgIn = Condition.of("organisationId", ConditionOperator.IN, listOf("acme", "globex"))
+
+    @Test
+    fun `create saves the Targeting Rule with duplicate values removed`() {
+        every { repository.existsByKey("targeted") } returns false
+        every { repository.save(any()) } answers { firstArg() }
+
+        val result = service.create(
+            CreateFlagUseCase.Command(
+                key = "targeted",
+                name = "Targeted",
+                description = null,
+                enabled = true,
+                conditions = listOf(Condition.Input("organisationId", "IN", listOf("acme", "globex", "acme"))),
+            ),
+        )
+
+        assertThat((result as CreateFlagUseCase.Result.Created).flag.targetingRule).isEqualTo(TargetingRule(listOf(orgIn)))
+        verify { repository.save(match { it.targetingRule == TargetingRule(listOf(orgIn)) }) }
+    }
+
+    @Test
+    fun `create rejects an invalid Targeting Rule without saving or auditing`() {
+        every { repository.existsByKey("targeted") } returns false
+
+        val result = service.create(
+            CreateFlagUseCase.Command(
+                key = "targeted",
+                name = "Targeted",
+                description = null,
+                enabled = true,
+                conditions = listOf(Condition.Input("organisationId", "IN", emptyList())),
+            ),
+        )
+
+        assertThat(result).isEqualTo(
+            InvalidTargetingRule(
+                mapOf("conditions[0].values" to "must contain at least one value"),
+            ),
+        )
+        verify(exactly = 0) { repository.save(any()) }
+        verify(exactly = 0) { auditTrail.record(any()) }
+    }
+
+    @Test
+    fun `update replaces the whole Targeting Rule`() {
+        every { repository.findById(id) } returns existing.copy(targetingRule = TargetingRule(listOf(orgIn)))
+        every { repository.save(any()) } answers { firstArg() }
+
+        val result = service.update(
+            UpdateFlagUseCase.Command(
+                id = id,
+                name = existing.name,
+                description = existing.description,
+                enabled = true,
+                conditions = listOf(Condition.Input("country", "IN", listOf("nl"))),
+            ),
+        )
+
+        assertThat((result as UpdateFlagUseCase.Result.Updated).flag.targetingRule.conditions)
+            .containsExactly(Condition.of("country", ConditionOperator.IN, listOf("nl")))
+    }
+
+    @Test
+    fun `update without Conditions clears the Targeting Rule`() {
+        every { repository.findById(id) } returns existing.copy(targetingRule = TargetingRule(listOf(orgIn)))
+        every { repository.save(any()) } answers { firstArg() }
+
+        val result = service.update(UpdateFlagUseCase.Command(id, existing.name, existing.description, true))
+
+        assertThat((result as UpdateFlagUseCase.Result.Updated).flag.targetingRule.conditions).isEmpty()
+    }
+
+    @Test
+    fun `update rejects an invalid Targeting Rule without saving or auditing`() {
+        every { repository.findById(id) } returns existing
+
+        val result = service.update(
+            UpdateFlagUseCase.Command(
+                id = id,
+                name = existing.name,
+                description = existing.description,
+                enabled = true,
+                conditions = listOf(
+                    Condition.Input("organisationId", "IN", listOf("acme")),
+                    Condition.Input("organisationId", "IN", listOf("globex")),
+                ),
+            ),
+        )
+
+        assertThat(result).isEqualTo(
+            InvalidTargetingRule(
+                mapOf("conditions[1].attribute" to "duplicate attribute 'organisationId'"),
+            ),
+        )
+        verify(exactly = 0) { repository.save(any()) }
+        verify(exactly = 0) { auditTrail.record(any()) }
+    }
+
+    private fun recordedDetail(): String? {
+        val command = slot<RecordAuditEntryUseCase.Command>()
+        verify { auditTrail.record(capture(command)) }
+        return command.captured.detail
+    }
+
+    @Test
+    fun `update records the Conditions before and after when the Targeting Rule changes`() {
+        every { repository.findById(id) } returns existing.copy(
+            targetingRule = TargetingRule(listOf(Condition.of("organisationId", ConditionOperator.IN, listOf("acme")))),
+        )
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.update(
+            UpdateFlagUseCase.Command(
+                id = id,
+                name = existing.name,
+                description = existing.description,
+                enabled = existing.enabled,
+                conditions = listOf(Condition.Input("organisationId", "IN", listOf("acme", "globex"))),
+            ),
+        )
+
+        assertThat(recordedDetail())
+            .isEqualTo("conditions: [organisationId IN (acme)] → [organisationId IN (acme, globex)]")
+    }
+
+    @Test
+    fun `update does not mention the Conditions when the Targeting Rule is unchanged`() {
+        every { repository.findById(id) } returns existing.copy(targetingRule = TargetingRule(listOf(orgIn)))
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.update(
+            UpdateFlagUseCase.Command(
+                id = id,
+                name = "renamed",
+                description = existing.description,
+                enabled = existing.enabled,
+                conditions = listOf(Condition.Input("organisationId", "IN", listOf("acme", "globex"))),
+            ),
+        )
+
+        assertThat(recordedDetail()).isEqualTo("name: 'Checkout v2' → 'renamed'")
+    }
+
+    @Test
+    fun `update that clears the Targeting Rule records it as empty`() {
+        every { repository.findById(id) } returns existing.copy(targetingRule = TargetingRule(listOf(orgIn)))
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.update(UpdateFlagUseCase.Command(id, existing.name, existing.description, existing.enabled))
+
+        assertThat(recordedDetail()).isEqualTo("conditions: [organisationId IN (acme, globex)] → []")
+    }
+
+    @Test
+    fun `create with Conditions records them in the CREATE audit entry`() {
+        every { repository.existsByKey("targeted") } returns false
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.create(
+            CreateFlagUseCase.Command(
+                key = "targeted",
+                name = "Targeted",
+                description = null,
+                enabled = true,
+                conditions = listOf(
+                    Condition.Input("organisationId", "IN", listOf("acme", "globex")),
+                    Condition.Input("country", "IN", listOf("nl")),
+                ),
+            ),
+        )
+
+        assertThat(recordedDetail()).isEqualTo(
+            "Created flag (enabled=true, conditions=[organisationId IN (acme, globex) AND country IN (nl)])",
+        )
+    }
+
+    @Test
+    fun `create without Conditions keeps the CREATE audit detail short`() {
+        every { repository.existsByKey("everyone") } returns false
+        every { repository.save(any()) } answers { firstArg() }
+
+        service.create(CreateFlagUseCase.Command("everyone", "Everyone", null, false))
+
+        assertThat(recordedDetail()).isEqualTo("Created flag (enabled=false)")
+    }
+
+    private val targeted = existing.copy(key = "targeted", enabled = true, targetingRule = TargetingRule(listOf(orgIn)))
+
+    @Test
+    fun `evaluate applies the Targeting Rule to the Evaluation Context`() {
+        every { repository.findByKey("targeted") } returns targeted
+
+        assertThat(service.evaluate("targeted", EvaluationContext(mapOf("organisationId" to "acme"))))
+            .isEqualTo(EvaluateFlagUseCase.Result.Evaluated(Evaluation("targeted", true)))
+        assertThat(service.evaluate("targeted", EvaluationContext(mapOf("organisationId" to "initech"))))
+            .isEqualTo(EvaluateFlagUseCase.Result.Evaluated(Evaluation("targeted", false)))
+        assertThat(service.evaluate("targeted", EvaluationContext(emptyMap())))
+            .isEqualTo(EvaluateFlagUseCase.Result.Evaluated(Evaluation("targeted", false)))
+    }
+
+    @Test
+    fun `evaluateAll applies each flag's Targeting Rule`() {
+        val everyone = existing.copy(key = "everyone", enabled = true)
+        val disabledTargeted = targeted.copy(key = "disabled-targeted", enabled = false)
+        every { repository.findAll() } returns listOf(everyone, targeted, disabledTargeted)
+
+        assertThat(service.evaluateAll(EvaluationContext(mapOf("organisationId" to "globex")))).containsExactly(
+            Evaluation("everyone", true),
+            Evaluation("targeted", true),
+            Evaluation("disabled-targeted", false),
+        )
+        assertThat(service.evaluateAll(EvaluationContext(mapOf("country" to "nl")))).containsExactly(
+            Evaluation("everyone", true),
+            Evaluation("targeted", false),
+            Evaluation("disabled-targeted", false),
+        )
     }
 }

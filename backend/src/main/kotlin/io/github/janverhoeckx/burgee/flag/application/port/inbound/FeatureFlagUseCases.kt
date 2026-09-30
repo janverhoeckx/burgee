@@ -1,5 +1,8 @@
 package io.github.janverhoeckx.burgee.flag.application.port.inbound
 
+import io.github.janverhoeckx.burgee.flag.domain.Condition
+import io.github.janverhoeckx.burgee.flag.domain.Evaluation
+import io.github.janverhoeckx.burgee.flag.domain.EvaluationContext
 import io.github.janverhoeckx.burgee.flag.domain.FeatureFlag
 import java.util.UUID
 
@@ -16,21 +19,13 @@ interface GetFlagByIdUseCase {
     fun getById(id: UUID): Result
 }
 
-interface GetFlagByKeyUseCase {
-    sealed interface Result {
-        data class Found(val flag: FeatureFlag) : Result
-        data object NotFound : Result
-    }
-
-    fun getByKey(key: String): Result
-}
-
 interface CreateFlagUseCase {
     data class Command(
         val key: String,
         val name: String,
         val description: String?,
         val enabled: Boolean,
+        val conditions: List<Condition.Input?> = emptyList(),
     )
 
     sealed interface Result {
@@ -47,6 +42,7 @@ interface UpdateFlagUseCase {
         val name: String,
         val description: String?,
         val enabled: Boolean,
+        val conditions: List<Condition.Input?> = emptyList(),
     )
 
     sealed interface Result {
@@ -56,6 +52,14 @@ interface UpdateFlagUseCase {
 
     fun update(command: Command): Result
 }
+
+/**
+ * The submitted Targeting Rule broke a rule; [violations] are keyed by field path (e.g. `conditions[0].values`).
+ * Shared by create and update, which both accept a Targeting Rule.
+ */
+data class InvalidTargetingRule(val violations: Map<String, String>) :
+    CreateFlagUseCase.Result,
+    UpdateFlagUseCase.Result
 
 interface ToggleFlagUseCase {
     sealed interface Result {
@@ -73,4 +77,17 @@ interface DeleteFlagUseCase {
     }
 
     fun delete(id: UUID): Result
+}
+
+interface EvaluateFlagUseCase {
+    sealed interface Result {
+        data class Evaluated(val evaluation: Evaluation) : Result
+        data object NotFound : Result
+    }
+
+    fun evaluate(key: String, context: EvaluationContext): Result
+}
+
+fun interface EvaluateAllFlagsUseCase {
+    fun evaluateAll(context: EvaluationContext): List<Evaluation>
 }

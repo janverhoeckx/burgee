@@ -4,6 +4,7 @@ import org.springframework.data.annotation.Id
 import org.springframework.data.annotation.Transient
 import org.springframework.data.domain.Persistable
 import org.springframework.data.relational.core.mapping.Column
+import org.springframework.data.relational.core.mapping.MappedCollection
 import org.springframework.data.relational.core.mapping.Table
 import java.time.Instant
 import java.util.UUID
@@ -21,6 +22,8 @@ data class FeatureFlagRow(
     val createdAt: Instant,
     @Column("updated_at")
     val updatedAt: Instant,
+    @MappedCollection(idColumn = "flag_id", keyColumn = "position")
+    val conditions: List<FlagConditionRow> = emptyList(),
 ) : Persistable<UUID> {
     @Transient
     var newRecord: Boolean = false

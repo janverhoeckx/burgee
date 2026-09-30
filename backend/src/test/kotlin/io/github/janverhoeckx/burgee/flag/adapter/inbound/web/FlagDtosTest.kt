@@ -34,13 +34,9 @@ class FlagDtosTest {
                 enabled = true,
                 createdAt = now,
                 updatedAt = now.plusSeconds(60),
+                conditions = emptyList(),
             ),
         )
-    }
-
-    @Test
-    fun `toPublic exposes only key and enabled`() {
-        assertThat(flag.toPublic()).isEqualTo(PublicFlagResponse("checkout-v2", true))
     }
 
     @Test

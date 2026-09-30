@@ -15,6 +15,7 @@ function flag(overrides: Partial<FeatureFlag> = {}): FeatureFlag {
     enabled: false,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
+    conditions: [],
     ...overrides,
   };
 }
@@ -57,6 +58,25 @@ describe('FlagsListComponent', () => {
     const rows = fixture.nativeElement.querySelectorAll('table.flags tbody tr');
     expect(rows.length).toBe(2);
     expect(fixture.nativeElement.querySelector('.header .muted').textContent).toContain('2 flags');
+  });
+
+  it('shows a "Targeted" badge only on flags that have Conditions', async () => {
+    service.list.mockReturnValue(
+      of([
+        flag({
+          id: 'a',
+          key: 'targeted',
+          conditions: [{ attribute: 'organisationId', operator: 'IN', values: ['acme'] }],
+        }),
+        flag({ id: 'b', key: 'everyone', conditions: [] }),
+      ]),
+    );
+    setup();
+    await fixture.whenStable();
+
+    const rows = fixture.nativeElement.querySelectorAll('table.flags tbody tr');
+    expect(rows[0].querySelector('.badge-targeted')?.textContent).toContain('Targeted');
+    expect(rows[1].querySelector('.badge-targeted')).toBeNull();
   });
 
   it('shows the empty state when there are no flags', async () => {

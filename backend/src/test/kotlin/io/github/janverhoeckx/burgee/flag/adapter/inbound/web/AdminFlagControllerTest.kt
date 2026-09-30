@@ -3,6 +3,7 @@ package io.github.janverhoeckx.burgee.flag.adapter.inbound.web
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.CreateFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.DeleteFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.GetFlagByIdUseCase
+import io.github.janverhoeckx.burgee.flag.application.port.inbound.InvalidTargetingRule
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.ListFlagsUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.ToggleFlagUseCase
 import io.github.janverhoeckx.burgee.flag.application.port.inbound.UpdateFlagUseCase
@@ -161,5 +162,20 @@ class AdminFlagControllerTest {
         val response = controller.delete(id)
 
         assertThat(response.statusCode).isEqualTo(HttpStatus.NOT_FOUND)
+    }
+
+    @Test
+    fun `create and update return 400 with field errors for an invalid Targeting Rule`() {
+        val violations = mapOf("conditions[0].values" to "must contain at least one value")
+        every { createFlag.create(any()) } returns InvalidTargetingRule(violations)
+        every { updateFlag.update(any()) } returns InvalidTargetingRule(violations)
+
+        val created = controller.create(CreateFeatureFlagRequest("k", "n", "d", false))
+        val updated = controller.update(id, UpdateFeatureFlagRequest("n", null, true))
+
+        listOf(created, updated).forEach { response ->
+            assertThat(response.statusCode).isEqualTo(HttpStatus.BAD_REQUEST)
+            assertThat((response.body as ApiError).fieldErrors).isEqualTo(violations)
+        }
     }
 }

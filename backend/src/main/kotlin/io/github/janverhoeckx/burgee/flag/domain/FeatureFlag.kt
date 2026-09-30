@@ -11,12 +11,23 @@ data class FeatureFlag(
     val enabled: Boolean,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val targetingRule: TargetingRule = TargetingRule(),
 ) {
-    fun withDetails(name: String, description: String?, enabled: Boolean, now: Instant): FeatureFlag =
-        copy(name = name, description = description, enabled = enabled, updatedAt = now)
+    fun withDetails(
+        name: String,
+        description: String?,
+        enabled: Boolean,
+        targetingRule: TargetingRule,
+        now: Instant,
+    ): FeatureFlag =
+        copy(name = name, description = description, enabled = enabled, targetingRule = targetingRule, updatedAt = now)
 
     fun toggled(now: Instant): FeatureFlag =
         copy(enabled = !enabled, updatedAt = now)
+
+    /** Evaluation: `enabled AND the Targeting Rule matches` for one Evaluation Context. */
+    fun evaluate(context: EvaluationContext): Evaluation =
+        Evaluation(flagKey = key, result = enabled && targetingRule.matches(context))
 
     companion object {
         fun create(
@@ -26,6 +37,7 @@ data class FeatureFlag(
             enabled: Boolean,
             now: Instant = Instant.now(),
             id: UUID = UUID.randomUUID(),
+            targetingRule: TargetingRule = TargetingRule(),
         ): FeatureFlag = FeatureFlag(
             id = id,
             key = key,
@@ -34,6 +46,7 @@ data class FeatureFlag(
             enabled = enabled,
             createdAt = now,
             updatedAt = now,
+            targetingRule = targetingRule,
         )
     }
 }

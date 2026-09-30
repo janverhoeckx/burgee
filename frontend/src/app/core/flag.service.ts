@@ -3,6 +3,17 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { apiBaseUrl } from './api.config';
 
+/** Operators a Condition supports. For now only IN: the Attribute must be one of the values. */
+export const ConditionOperator = { In: 'IN' } as const;
+export type ConditionOperator = (typeof ConditionOperator)[keyof typeof ConditionOperator];
+
+/** One requirement in a flag's Targeting Rule: the Attribute must have one of the values. */
+export interface Condition {
+  attribute: string;
+  operator: ConditionOperator;
+  values: string[];
+}
+
 export interface FeatureFlag {
   id: string;
   key: string;
@@ -11,6 +22,7 @@ export interface FeatureFlag {
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
+  conditions: Condition[];
 }
 
 export interface CreateFlagPayload {
@@ -18,12 +30,18 @@ export interface CreateFlagPayload {
   name: string;
   description?: string | null;
   enabled: boolean;
+  conditions: Condition[];
 }
 
+/**
+ * A PUT replaces the whole Targeting Rule, and a missing `conditions` clears it,
+ * so `conditions` is required here: always send the flag's full list.
+ */
 export interface UpdateFlagPayload {
   name: string;
   description?: string | null;
   enabled: boolean;
+  conditions: Condition[];
 }
 
 @Injectable({ providedIn: 'root' })

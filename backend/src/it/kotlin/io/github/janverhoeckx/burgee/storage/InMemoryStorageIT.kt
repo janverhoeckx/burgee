@@ -36,7 +36,7 @@ class InMemoryStorageIT(
         mockMvc.post("/api/admin/flags/$id/toggle") { with(admin) }
             .andExpect { status { isOk() } }
 
-        mockMvc.get("/api/v1/flags/$key") {
+        mockMvc.post("/api/v1/flags/$key/evaluate") {
             with(anonymous())
         }.andExpect {
             status { isOk() }
@@ -51,6 +51,31 @@ class InMemoryStorageIT(
             jsonPath("$[1].action") { value("CREATE") }
             jsonPath("$[0].actor") { value("admin") }
         }
+    }
+
+    @Test
+    fun `a flag's Targeting Rule is stored and applied on evaluation`() {
+        val key = uniqueKey("targeted")
+        mockMvc.post("/api/admin/flags") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"key":"$key","name":"Flag $key","enabled":true,
+                "conditions":[{"attribute":"organisationId","operator":"IN","values":["acme","globex"]}]}"""
+            with(admin)
+        }.andExpect {
+            status { isCreated() }
+            jsonPath("$.conditions[0].values[1]") { value("globex") }
+        }
+
+        mockMvc.post("/api/v1/flags/$key/evaluate") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"attributes":{"organisationId":"globex"}}"""
+            with(anonymous())
+        }.andExpect { jsonPath("$.enabled") { value(true) } }
+        mockMvc.post("/api/v1/flags/$key/evaluate") {
+            contentType = MediaType.APPLICATION_JSON
+            content = """{"attributes":{"organisationId":"initech"}}"""
+            with(anonymous())
+        }.andExpect { jsonPath("$.enabled") { value(false) } }
     }
 
     @Test

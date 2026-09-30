@@ -14,6 +14,7 @@ const sampleFlag: FeatureFlag = {
   enabled: true,
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-02T00:00:00Z',
+  conditions: [{ attribute: 'organisationId', operator: 'IN', values: ['acme'] }],
 };
 
 describe('FlagService', () => {
@@ -55,12 +56,13 @@ describe('FlagService', () => {
     expect(result).toEqual(sampleFlag);
   });
 
-  it('creates a flag with a POST request carrying the payload', () => {
+  it('creates a flag with a POST request carrying the payload and conditions', () => {
     const payload: CreateFlagPayload = {
       key: 'new-checkout',
       name: 'New Checkout',
       description: null,
       enabled: false,
+      conditions: [{ attribute: 'plan', operator: 'IN', values: ['pro', 'enterprise'] }],
     };
     service.create(payload).subscribe();
 
@@ -70,11 +72,12 @@ describe('FlagService', () => {
     req.flush(sampleFlag);
   });
 
-  it('updates a flag with a PUT request', () => {
+  it('updates a flag with a PUT request carrying the full conditions list', () => {
     const payload: UpdateFlagPayload = {
       name: 'Renamed',
       description: 'updated',
       enabled: true,
+      conditions: [{ attribute: 'organisationId', operator: 'IN', values: ['acme'] }],
     };
     service.update('flag-1', payload).subscribe();
 
