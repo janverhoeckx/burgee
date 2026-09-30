@@ -1,4 +1,4 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page, Response } from '@playwright/test';
 
 export interface FlagFields {
   name?: string;
@@ -30,8 +30,14 @@ export class FlagFormPage {
     this.cancel = page.getByRole('button', { name: 'Cancel' });
   }
 
-  async gotoNew(): Promise<void> {
-    await this.page.goto('/flags/new');
+  /** Returns the document response, so a deep-link journey can check what the server sent. */
+  async gotoNew(): Promise<Response | null> {
+    return this.page.goto('/flags/new');
+  }
+
+  /** Returns the document response, so a deep-link journey can check what the server sent. */
+  async gotoEdit(id: string): Promise<Response | null> {
+    return this.page.goto(`/flags/${id}/edit`);
   }
 
   /** Fills the new-flag form and saves it. */
