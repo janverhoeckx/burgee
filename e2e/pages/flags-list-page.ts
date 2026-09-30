@@ -31,6 +31,11 @@ export class FlagsListPage {
     await toggled;
   }
 
+  /** Opens the flag's own Audit trail. */
+  async history(key: string): Promise<void> {
+    await this.row(key).getByRole('button', { name: 'History' }).click();
+  }
+
   async edit(key: string): Promise<void> {
     await this.row(key).getByRole('button', { name: 'Edit' }).click();
   }

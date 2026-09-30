@@ -2,6 +2,7 @@ import { test as base, type APIRequestContext } from '@playwright/test';
 import { AdminApi } from './api/admin-api';
 import { EvaluationApi } from './api/evaluation-api';
 import { baseURL, e2eEnv } from './env';
+import { AuditPage } from './pages/audit-page';
 import { FlagFormPage } from './pages/flag-form-page';
 import { FlagsListPage } from './pages/flags-list-page';
 import { LoginPage } from './pages/login-page';
@@ -18,6 +19,7 @@ type Fixtures = {
   loginPage: LoginPage;
   flagsListPage: FlagsListPage;
   flagFormPage: FlagFormPage;
+  auditPage: AuditPage;
   usersListPage: UsersListPage;
   userFormPage: UserFormPage;
   adminApi: AdminApi;
@@ -44,6 +46,10 @@ export const test = base.extend<Options & Fixtures>({
 
   flagFormPage: async ({ page }, use) => {
     await use(new FlagFormPage(page));
+  },
+
+  auditPage: async ({ page }, use) => {
+    await use(new AuditPage(page));
   },
 
   usersListPage: async ({ page }, use) => {
