@@ -20,6 +20,10 @@ _Avoid_: toggle, feature switch
 The flag's master switch. A disabled flag always evaluates to false, whatever its Targeting Rule says.
 _Avoid_: active, on
 
+**Toggle**:
+Flipping a Feature Flag's Enabled switch without changing anything else about it. Only the action is called a toggle, never the flag itself.
+_Avoid_: enable/disable (as the name of the action)
+
 **Evaluation Context**:
 The set of Attributes a client submits when asking for a flag's value. It may be empty.
 _Avoid_: properties, payload, request data
@@ -38,6 +42,36 @@ One requirement in a Targeting Rule: an Attribute name, an operator (currently o
 **Evaluation**:
 Computing a flag's true/false result for one Evaluation Context: `enabled AND every Condition matches`.
 _Avoid_: check, resolve
+
+### Users and access
+
+**User**:
+A person known to Burgee, identified by a subject from its identity provider (a username in basic auth, a token `sub` in jwt auth), holding exactly one Role.
+_Avoid_: account, member
+
+**Role**:
+The permission level of a User: **Admin**, `USER` (meaning not yet defined, see #16), or **New**.
+
+**Admin**:
+A User with full management permissions over Feature Flags and Users.
+
+**New**:
+The Role a User gets when first provisioned. It grants nothing until an Admin changes it.
+_Avoid_: pending, guest
+
+**Bootstrap admin**:
+The Admin created at startup from configuration, so that a fresh installation is manageable.
+_Avoid_: root, superuser
+
+### Audit
+
+**Audit entry**:
+An immutable record that an Actor created, updated, toggled or deleted a Feature Flag.
+_Avoid_: log, history, event
+
+**Actor**:
+The User on whose behalf a change was made, as recorded on an Audit entry.
+_Avoid_: author, editor
 
 ## Relationships
 

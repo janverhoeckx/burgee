@@ -31,7 +31,16 @@ npm test -- --watch=false --include src/app/core/flag.service.spec.ts
 npm run build
 ```
 
-CI: `.github/workflows/pr-build.yml` runs backend `./mvnw verify` (unit + integration tests) and the frontend tests on pull requests to `main`. `.github/workflows/master-builder.yml` runs the same tests on pushes to `main`, then builds and pushes a multi-arch image to GHCR.
+End-to-end (run from `e2e/`, needs Docker; see README for the env vars):
+
+```bash
+npm run e2e                                # build the production image, start it on :18080 with a fresh Postgres, run Playwright, tear down
+npx playwright test tests/login.spec.ts    # one spec file
+E2E_NO_BUILD=1 E2E_KEEP_STACK=1 npm run e2e  # reuse the last image and leave the stack up for debugging
+npm run typecheck
+```
+
+CI: `.github/workflows/pr-build.yml` runs backend `./mvnw verify` (unit + integration tests) and the frontend tests on pull requests to `main`. `.github/workflows/master-builder.yml` runs the same tests plus the e2e suite on pushes to `main`, and only then builds and pushes a multi-arch image to GHCR.
 
 ## Backend architecture
 
@@ -74,6 +83,15 @@ Configuration lives in `application.yml`: env vars map to `burgee.*` properties,
 ## Frontend
 
 A standalone-component Angular app. `src/app/core/` holds the HTTP services, guards and the auth interceptor. `src/app/pages/` holds routed pages, with routes in `app.routes.ts`. `AuthService` asks `/api/auth/info` which mode the backend runs in. In basic mode it stores the Basic credentials in storage. In jwt mode it runs a PKCE login with `oidc-client-ts` using the OIDC config the backend returns. `auth.interceptor` adds the matching `Authorization` header. The API base URL is same-origin by default and can be overridden with `window.__burgeeConfig.apiBaseUrl`. Specs sit next to the files they test (`*.spec.ts`) and run on vitest + jsdom.
+
+## E2E testing conventions
+
+- Run the e2e suite when you touch the dashboard, security or web config.
+- The DB lives for the whole run and tests run `fullyParallel`, so every test makes its own Key with `uniqueKey('prefix')` from `support/unique-key.ts`.
+- Set up preconditions through the `adminApi` fixture (`adminApi.flags.create(...)`). Use the UI only for the behaviour under test.
+- Page Objects live in `pages/`, hold locators and intent methods (`createFlag`, `toggle(key)`, `delete(key)`), contain no assertions, and are injected as fixtures from `fixtures.ts`.
+- Locators use roles, labels and text only. Find a flag's row with `getByRole('row').filter({ hasText: key })`. No `data-testid`. When an element has no accessible name, add one to the markup (as with the `Toggle <key>` checkbox).
+- The SPA keeps basic auth in sessionStorage, which `storageState` skips. The `setup` project (`tests/auth.setup.ts`) signs in once and saves that entry to `.auth/`, and the `context` fixture restores it with `addInitScript`. Tests start signed in; `test.use({ signedIn: false })` starts signed out, for journeys that sign in themselves (login, role enforcement).
 
 ## Agent skills
 

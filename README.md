@@ -212,6 +212,28 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --wait post
 
 In production the SPA is served by the backend at `/`, so no proxy is needed.
 
+### End-to-end tests
+
+The Playwright suite in `e2e/` runs against the production Docker image on a throwaway Postgres (see ADR 0003). It needs Docker and Node 22+.
+
+```bash
+cd e2e
+npm ci && npx playwright install chromium   # once
+npm run e2e                                  # build the image, start the stack, run all tests, tear down
+npx playwright test tests/login.spec.ts      # one spec file
+npm run report                               # open the HTML report of the last run
+```
+
+The stack runs as compose project `burgee-e2e` with the app on http://localhost:18080 and a fresh in-memory Postgres every run, so it never touches `dev.sh` or your `docker compose up` data.
+
+| Variable         | Default      | Description                                                    |
+|------------------|--------------|----------------------------------------------------------------|
+| `E2E_NO_BUILD`   | *(unset)*    | `1` skips the image build and reuses `E2E_IMAGE`              |
+| `E2E_KEEP_STACK` | *(unset)*    | `1` leaves the stack running after the run, for debugging     |
+| `E2E_IMAGE`      | `burgee:e2e` | Image to run                                                   |
+| `E2E_PORT`       | `18080`      | Host port the app is published on                              |
+| `E2E_PROJECT`    | `burgee-e2e` | Compose project name, for running several stacks side by side  |
+
 ## Roadmap
 
 - Environments (dev/staging/prod) per flag
